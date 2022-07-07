@@ -14,7 +14,7 @@ from telegram.ext import (
 )
 
 
-async def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     MTA_APIKey = "***REMOVED***"
     

@@ -1,0 +1,120 @@
+18 Av
+25 Av
+30 Av
+36 Av
+4 Av-9 St
+Alabama Av
+Atlantic
+Atlantic Av
+Atlantic Av-Barclays Ctr
+Avenue H
+Avenue I
+Avenue J
+Avenue M
+Avenue N
+Avenue P
+Avenue U
+Avenue X
+Bay 50 St
+Bay Pkwy
+Bay Ridge-95 St
+Bay Ridge Av
+Bedford-Nostrand Avs
+Bedford Av
+Bergen St
+Beverley Rd
+Beverly Rd
+Borough Hall
+Brighton Beach
+Bushwick Av-Aberdeen St
+Canarsie-Rockaway Pkwy
+Carroll St
+Central Av
+Chauncey St
+Church Av
+Clark St
+Classon Av
+Cleveland St
+Clifton
+Clinton-Washington Avs
+Coney Island-Stillwell Av
+Cortelyou Rd
+Court St
+Crescent St
+Crown Hts-Utica Av
+Cypress Hills
+DeKalb Av
+Delancey St-Essex St
+Delancy St-Essex St
+Ditmas Av
+Dyckman St
+Eastern Pkwy-Brooklyn Museum
+Euclid Av
+Flatbush Av-Brooklyn College
+Flushing Av
+Fort Hamilton Pkwy
+Franklin Av
+Franklin St
+Gates Av
+Graham Av
+Grand Army Plaza
+Grand St
+Greenpoint Av
+Halsey St
+Hewes St
+High St
+Hoyt-Schermerhorn Sts
+Hoyt St
+Jay St-MetroTech
+Jefferson Av
+Jefferson St
+Junius St
+Kings Hwy
+Kingston-Throop Avs
+Kingston Av
+Knickerbocker Av
+Kosciuszko St
+Liberty Av
+Livonia Av
+Longwood Av
+Lorimer St
+Marcy Av
+Montrose Av
+Morgan Av
+Myrtle-Willoughby Avs
+Myrtle-Wyckoff Avs
+Myrtle Av
+Nassau
+Nassau Av
+Neck Rd
+Neptune Av
+Nevins St
+New Dorp
+New Lots Av
+New Utrecht Av
+Newkirk Av
+Newkirk Plaza
+Norwood Av
+Nostrand Av
+Ocean Pkwy
+Parkside Av
+Pennsylvania Av
+President St
+Prospect Av
+Prospect Park
+Ralph Av
+Rockaway Av
+S.B. Coney Island
+Saratoga Av
+Sheepshead Bay
+Shepherd Av
+Smith-9 Sts
+Sterling St
+Sutter Av
+Sutter Av-Rutland Rd
+Union St
+Utica Av
+Van Siclen Av
+W 8 St-NY Aquarium
+Winthrop St
+York St

@@ -1,7 +1,7 @@
 from datetime import date,datetime,timedelta
 import pandas as pd
 
-async def findDestination(input_station, df_trips, df_stop_times):
+def findDestination(input_station, df_trips, df_stop_times):
 #def findDestination(trip_id, input_train, boolean_direction, input_station):
 
     # Select trips that match the current day of the week to speed up later processing

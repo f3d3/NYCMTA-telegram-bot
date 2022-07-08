@@ -19,6 +19,10 @@ import re
 
 from functools import *
 
+# import time
+# from concurrent.futures import ThreadPoolExecutor
+# _executor = ThreadPoolExecutor(10)
+
 # from protobuf_to_dict import protobuf_to_dict
 
 import create_cache as cc
@@ -26,7 +30,7 @@ import findArrivalTime as fat
 
 from datetime import date
 
-
+# import asyncio
 
 import logging
 
@@ -53,6 +57,8 @@ from telegram.ext import (
     filters,
 )
 
+import make_async as ma
+
 # Enable logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -64,15 +70,7 @@ BOROUGH, STATION, LOCATION = range(3)
 
 
 #async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, trips, stops, stop_times, trainsToShow, reply_keyboard_borough) -> int:
-
-    # Load csv files and save in user context to pass them around the code
-    context.bot_data["trips"] = trips
-    context.bot_data["stops"] = stops
-    context.bot_data["stop_times"] = stop_times
-
-    # Select how many incoming trains to show in output
-    context.bot_data["trainsToShow"] = trainsToShow
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, reply_keyboard_borough) -> int:
 
     """Starts the conversation and asks the user about their borough."""
     await update.message.reply_text(
@@ -116,8 +114,12 @@ async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return STATION
 
 
+partial_findArrivalTime = partial(fat.findArrivalTime, update=Update, context=ContextTypes.bot_data)
+
+
+
 # Process the borough and staion and find arrival times
-async def station(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, trips, stops, stop_times, trainsToShow) -> int:
 
     await update.message.reply_text(
         "Processing... \U0001F52E",
@@ -128,7 +130,20 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.message.from_user
     logger.info("Station of %s: %s", user.first_name, update.message.text)
 
-    trains, destinations, waiting_times, directions = fat.findArrivalTime(update, context)
+
+    # tasks = [asyncio.to_thread(partial_findArrivalTime)]
+    # trains, destinations, waiting_times, directions = await asyncio.gather(*tasks)
+    
+    # tasks = [asyncio.to_thread(partial_findArrivalTime)]
+    # res = await asyncio.gather(*tasks)
+
+    # trains, destinations, waiting_times, directions = await loop.run_in_executor(_executor, partial_findArrivalTime)
+
+    # trains, destinations, waiting_times, directions = await ma.make_async(partial_findArrivalTime)
+
+    trains, destinations, waiting_times, directions = await fat.findArrivalTime_async(update, context, trips, stops, stop_times, trainsToShow)
+
+    # trains, destinations, waiting_times, directions = fat.findArrivalTime_async(update, context)
 
     emoji_indication = [('\U0001F53C' if directions[i] == 'N' else ('\U0001F53D' if directions[i] == 'S' else directions[i])) for i in range(0,len(directions))]
 
@@ -210,7 +225,7 @@ def main() -> None:
     stops = pd.read_csv('gtfs static files/stops.txt')
 
     # Load alphabetically sorted staitons file
-    sortedStations = pd.read_csv('cache/stops_names/sorted_stations.txt').values.ravel()
+    sortedStations = pd.read_csv('cache/stops_names/sorted_stations.txt',header=None).values.ravel()
 
     # Load stop_times and trips for current day
     if date.today().weekday() == 5: # Saturday
@@ -227,7 +242,10 @@ def main() -> None:
     reply_keyboard_borough = [["Manhattan","Brooklyn","Queens"],["The Bronx","Staten Island"]]
     
     # partial start() function -> needed to pass additional arguments to it to avoid reading csv at each /start command
-    partial_start = partial(start, trips=trips, stops=stops, stop_times=stop_times, trainsToShow=trainsToShow, reply_keyboard_borough=reply_keyboard_borough)
+    partial_start = partial(start, reply_keyboard_borough=reply_keyboard_borough)
+
+    # partial_station start() function -> needed to pass additional arguments to it to avoid reading csv at each /start command
+    partial_station = partial(station, trips=trips, stops=stops, stop_times=stop_times, trainsToShow=trainsToShow)
 
     # partial error_borough() function -> needed to pass additional arguments to it
     partial_error_borough = partial(error_borough, reply_keyboard_borough=reply_keyboard_borough)
@@ -239,21 +257,21 @@ def main() -> None:
     BOT_TOKEN = "***REMOVED***"
 
     # Create the Application and pass it your bot's token.
-    application = Application.builder().token(BOT_TOKEN).build()
+    application = Application.builder().token(BOT_TOKEN).concurrent_updates(True).build()
 
     # Add conversation handler with the states BOROUGH, STATION, and LOCATION
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", partial_start)],
         states={ 
-            BOROUGH: [MessageHandler(filters.Regex(re.compile('|'.join(re.escape(x) for x in [j for i in reply_keyboard_borough for j in i]))), borough),
+            BOROUGH: [MessageHandler(filters.Regex(re.compile('|'.join(re.escape(x) for x in [j for i in reply_keyboard_borough for j in i]))), borough, block=False),
                       CommandHandler("start", partial_start),
                       CommandHandler("stop", stop),
-                      MessageHandler(filters.ALL, partial_error_borough),
+                      MessageHandler(filters.ALL, partial_error_borough, block=False),
             ],
-            STATION: [MessageHandler(filters.Regex(re.compile('|'.join(re.escape(x) for x in sortedStations))), station),
+            STATION: [MessageHandler(filters.Regex(re.compile('|'.join(re.escape(x) for x in sortedStations))), partial_station, block=False),
                       CommandHandler("start", partial_start),
                       CommandHandler("stop", stop),
-                      MessageHandler(filters.ALL, error_station),
+                      MessageHandler(filters.ALL, error_station, block=False),
             ],
         },
         fallbacks=[CommandHandler("start", partial_start), CommandHandler("stop", stop)],
@@ -269,9 +287,15 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    
     # while True:
     #     try:
     #         logger.info("Starting bot")
     #         main()
     #     except Exception:
     #         logger.exception("Something bad happened. Restarting")
+
+
+    # loop = asyncio.get_event_loop()
+    # loop.run_until_complete(main())
+    # loop.close()

@@ -5,6 +5,9 @@ import math
 import requests
 import google.transit.gtfs_realtime_pb2 as gtfs_realtime_pb2
 
+from datetime import date,datetime,timedelta
+
+
 import findDestination as fd
 
 from telegram import __version__ as TG_VER
@@ -13,8 +16,23 @@ from telegram.ext import (
     ContextTypes,
 )
 
+import asyncio
 
-def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE):
+import make_async as ma
+
+async def findArrivalTime_async(update, context, trips, stops, stop_times, trainsToShow):
+    # loop = asyncio.get_event_loop()
+    # return await loop.run_in_executor(
+    #     None, lambda: findArrivalTime(update, context, trips, stops, stop_times, trainsToShow))
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, findArrivalTime, update, context, trips, stops, stop_times, trainsToShow)
+
+
+from functools import *
+import findDestination as fd
+
+
+def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, df_stops, df_stop_times, trainsToShow):
     
     MTA_APIKey = "***REMOVED***"
     
@@ -28,12 +46,6 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "L"      : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-l",     # L
         "SIR"    : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-si"     # SIR (Staten Island Railway)
     }
-
-    trainsToShow = context.bot_data["trainsToShow"]
-
-    df_trips = context.bot_data["trips"]
-    df_stop_times = context.bot_data["stop_times"]
-    df_stops = context.bot_data["stops"]
 
     df_stops = df_stops.loc[df_stops['stop_name']==context.user_data["station"]]['stop_id']
     stations = df_stops.values
@@ -79,7 +91,49 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     destinations = []; directions = []; waiting_times = []
 
     for i in range(0,min(trainsToShow,len(df_final.index)-1)):
-        dest, dir = fd.findDestination(df_final.loc[i,'Station'], df_trips, df_stop_times)
+
+        input_station = df_final.loc[i,'Station']
+
+        # partial_findDestination = partial(fd.findDestination, input_station=df_final.loc[i,'Station'], df_trips=df_trips, df_stop_times=df_stop_times)
+        # dest, dir = ma.make_async(partial_findDestination)
+
+        # dest, dir = fd.findDestination_async(df_final.loc[i,'Station'], df_trips, df_stop_times)
+        # dest, dir = fd.findDestination(input_station, df_trips, df_stop_times)
+
+
+
+        # Select trips that match the current day of the week to speed up later processing
+        if date.today().weekday() == 5: # Saturday
+            df_trip_id = df_stop_times.loc[(df_stop_times['stop_id'] == input_station),['trip_id','arrival_time']]
+        elif date.today().weekday() == 6: # Sunday
+            df_trip_id = df_stop_times.loc[(df_stop_times['stop_id'] == input_station),['trip_id','arrival_time']]
+        else:
+            df_trip_id = df_stop_times.loc[(df_stop_times['stop_id'] == input_station),['trip_id','arrival_time']]
+
+        # Fix hour values greater than 24 (MTA's bug)
+        twenty_fours = df_trip_id['arrival_time'].str[-8:-6].astype(int) >= 24
+        df_trip_id.loc[twenty_fours, 'arrival_time'] = df_trip_id['arrival_time'].str[:-8] + '00' + df_trip_id['arrival_time'].str[-6:]
+        df_trip_id.loc[:,'arrival_time'] = pd.to_datetime(df_trip_id.loc[:,'arrival_time'], format='%H:%M:%S')
+        df_trip_id.loc[twenty_fours, 'arrival_time'] = df_trip_id.loc[twenty_fours, 'arrival_time'] + timedelta(days=1) # add 1 day to routes with hour that was greater than 24
+
+        # Save current time as a datetime object
+        reftime = datetime.now().strftime('%H:%M:%S')
+        reftime = datetime.strptime(reftime, "%H:%M:%S")
+
+        # Find trip with closest scheduled departure to current time
+        df_trip_id = df_trip_id.iloc[[df_trip_id.arrival_time.searchsorted(reftime)]]
+
+        # Select train headsign and direction corresponding to selected trip
+        temp = df_trips[df_trips['trip_id'].isin(df_trip_id['trip_id'])]
+        finaldestination = temp.iloc[0]['trip_headsign']
+        direction = temp.iloc[0]['trip_id']
+        direction = direction[-4]
+
+        dest = finaldestination
+        dir = direction
+
+
+        
         destinations.append(dest)
         directions.append(dir)
 

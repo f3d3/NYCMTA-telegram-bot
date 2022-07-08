@@ -20,19 +20,19 @@ import asyncio
 
 import make_async as ma
 
-async def findArrivalTime_async(update, context, trips, stops, stop_times, trainsToShow):
+async def findArrivalTime_async(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow):
     # loop = asyncio.get_event_loop()
     # return await loop.run_in_executor(
     #     None, lambda: findArrivalTime(update, context, trips, stops, stop_times, trainsToShow))
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, findArrivalTime, update, context, trips, stops, stop_times, trainsToShow)
+    return await loop.run_in_executor(None, findArrivalTime, update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow)
 
 
 from functools import *
 import findDestination as fd
 
 
-def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, df_stops, df_stop_times, trainsToShow):
+def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow):
     
     MTA_APIKey = "***REMOVED***"
     
@@ -47,10 +47,21 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
         "SIR"    : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-si"     # SIR (Staten Island Railway)
     }
 
-    df_stops = df_stops.loc[df_stops['stop_name']==context.user_data["station"]]['stop_id']
-    stations = df_stops.values
+    # Find the selected station's stop_id
+    stop_ids = (df_stops.loc[df_stops['stop_name']==context.user_data["station"]]['stop_id']).tolist()
+    
+    # Since train names can't be extracted from stop_ids reliably, get the selected station's coordinates 
+    df_stops_coord = df_stops.loc[df_stops['stop_name']==context.user_data["station"]][['stop_lat','stop_lon']]
+    df_stops_coord = df_stops_coord.drop_duplicates(subset=['stop_lat','stop_lon'])
 
-    feedsToCheck = subwayDict.values()
+    # Merge stops and shapes dataframes on lat and lon coordinates
+    df_stops_coord_shapes = pd.merge(df_stops_coord, df_shapes, left_on=['stop_lat','stop_lon'], right_on=['shape_pt_lat','shape_pt_lon'], how='left')
+    
+    # Find the serving train names
+    servingTrains = list(set([st[0] for st in df_stops_coord_shapes['shape_id'].tolist()]))
+    
+    # Check only the serving train GTFS feeds to save times
+    feedsToCheck = [value for key, value in subwayDict.items() if any(substring in key for substring in servingTrains)]
 
     # request parameters
     headers = {'x-api-key': MTA_APIKey}
@@ -80,7 +91,7 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
                 if ent.trip_update.trip.HasField('route_id'):
                     trainname = ent.trip_update.trip.route_id
                     for j in range(0, len(ent.trip_update.stop_time_update)):
-                        if (ent.trip_update.stop_time_update[j].stop_id in stations) and (ent.trip_update.stop_time_update[j].arrival.time < df['Time'].max()) and (ent.trip_update.stop_time_update[j].arrival.time >= int(time.time())):
+                        if (ent.trip_update.stop_time_update[j].stop_id in stop_ids) and (ent.trip_update.stop_time_update[j].arrival.time < df['Time'].max()) and (ent.trip_update.stop_time_update[j].arrival.time >= int(time.time())):
                             trip_id = ent.trip_update.trip.trip_id
                             station_codename = ent.trip_update.stop_time_update[j].stop_id
                             station_arrival_time = ent.trip_update.stop_time_update[j].arrival.time

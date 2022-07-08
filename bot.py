@@ -28,7 +28,7 @@ from functools import *
 import create_cache as cc
 import findArrivalTime as fat
 
-from datetime import date
+from datetime import date, datetime
 
 # import asyncio
 
@@ -72,9 +72,14 @@ BOROUGH, STATION, LOCATION = range(3)
 #async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, reply_keyboard_borough) -> int:
 
+    user = update.message.from_user
     """Starts the conversation and asks the user about their borough."""
+
+    hour = datetime.now().hour
+    greeting = "Good morning" if 5<=hour<12 else "Good afternoon" if hour<18 else "Good evening"
     await update.message.reply_text(
-        "Select your borough, or send /stop to stop talking to me.",
+        greeting + f", {user.first_name} \U0001F44B\n\n"+
+        "Select your borough from the list, or send /stop to stop talking to me.",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder="Manhattan, Brooklyn, Queens, The Bronx, or Staten Island?"
         ),
@@ -114,12 +119,12 @@ async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return STATION
 
 
-partial_findArrivalTime = partial(fat.findArrivalTime, update=Update, context=ContextTypes.bot_data)
+# partial_findArrivalTime = partial(fat.findArrivalTime, update=Update, context=ContextTypes.bot_data)
 
 
 
 # Process the borough and staion and find arrival times
-async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, trips, stops, stop_times, trainsToShow) -> int:
+async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow) -> int:
 
     await update.message.reply_text(
         "Processing... \U0001F52E",
@@ -141,7 +146,7 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, trips, sto
 
     # trains, destinations, waiting_times, directions = await ma.make_async(partial_findArrivalTime)
 
-    trains, destinations, waiting_times, directions = await fat.findArrivalTime_async(update, context, trips, stops, stop_times, trainsToShow)
+    trains, destinations, waiting_times, directions = await fat.findArrivalTime_async(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow)
 
     # trains, destinations, waiting_times, directions = fat.findArrivalTime_async(update, context)
 
@@ -184,10 +189,10 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Displays info on how to use the bot."""
     await update.message.reply_text(
-        "Use /start to start this bot and find New York City's realtime subway arrival times. \U0001F687\U0001F5FD\n\nUse /stop to stop this bot.\U0000270B"
+        "Use /start to start this bot and find New York City's realtime subway arrival times \U0001F687\U0001F5FD\n\nUse /stop to stop this bot \U0000270B"
     )
 
 
@@ -222,21 +227,24 @@ def main() -> None:
     trainsToShow = 5
     
     # Load stops file
-    stops = pd.read_csv('gtfs static files/stops.txt')
+    df_stops = pd.read_csv('gtfs static files/stops.txt')
 
-    # Load alphabetically sorted staitons file
+    # Load shapes file
+    df_shapes = pd.read_csv('gtfs static files/shapes.txt')
+
+    # Load alphabetically sorted stations file
     sortedStations = pd.read_csv('cache/stops_names/sorted_stations.txt',header=None).values.ravel()
 
     # Load stop_times and trips for current day
     if date.today().weekday() == 5: # Saturday
-        stop_times = pd.read_csv('cache/stop_times/saturday.csv')
-        trips = pd.read_csv('cache/trips/saturday.csv')
+        df_stop_times = pd.read_csv('cache/stop_times/saturday.csv')
+        df_trips = pd.read_csv('cache/trips/saturday.csv')
     elif date.today().weekday() == 6: # Sunday
-        stop_times = pd.read_csv('cache/stop_times/sunday.csv')
-        trips = pd.read_csv('cache/trips/sunday.csv')
+        df_stop_times = pd.read_csv('cache/stop_times/sunday.csv')
+        df_trips = pd.read_csv('cache/trips/sunday.csv')
     else: # Weekday
-        stop_times = pd.read_csv('cache/stop_times/weekday.csv')
-        trips = pd.read_csv('cache/trips/weekday.csv')
+        df_stop_times = pd.read_csv('cache/stop_times/weekday.csv')
+        df_trips = pd.read_csv('cache/trips/weekday.csv')
 
     # Keyboard borough buttons
     reply_keyboard_borough = [["Manhattan","Brooklyn","Queens"],["The Bronx","Staten Island"]]
@@ -245,7 +253,7 @@ def main() -> None:
     partial_start = partial(start, reply_keyboard_borough=reply_keyboard_borough)
 
     # partial_station start() function -> needed to pass additional arguments to it to avoid reading csv at each /start command
-    partial_station = partial(station, trips=trips, stops=stops, stop_times=stop_times, trainsToShow=trainsToShow)
+    partial_station = partial(station, df_trips=df_trips, df_stops=df_stops, df_stop_times=df_stop_times, df_shapes=df_shapes, trainsToShow=trainsToShow)
 
     # partial error_borough() function -> needed to pass additional arguments to it
     partial_error_borough = partial(error_borough, reply_keyboard_borough=reply_keyboard_borough)
@@ -265,11 +273,13 @@ def main() -> None:
         states={ 
             BOROUGH: [MessageHandler(filters.Regex(re.compile('|'.join(re.escape(x) for x in [j for i in reply_keyboard_borough for j in i]))), borough, block=False),
                       CommandHandler("start", partial_start),
+                      CommandHandler("help", help),
                       CommandHandler("stop", stop),
                       MessageHandler(filters.ALL, partial_error_borough, block=False),
             ],
             STATION: [MessageHandler(filters.Regex(re.compile('|'.join(re.escape(x) for x in sortedStations))), partial_station, block=False),
                       CommandHandler("start", partial_start),
+                      CommandHandler("help", help),
                       CommandHandler("stop", stop),
                       MessageHandler(filters.ALL, error_station, block=False),
             ],
@@ -279,7 +289,10 @@ def main() -> None:
     application.add_handler(conv_handler)
 
     # Add help handler 
-    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("help", help))
+
+    # Add stop handler 
+    application.add_handler(CommandHandler("stop", stop))
 
     # Run the bot until Ctrl-C is pressed
     application.run_polling(timeout=10)

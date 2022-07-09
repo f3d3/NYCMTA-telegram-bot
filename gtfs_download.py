@@ -32,6 +32,8 @@ while True:
 
     if is_file_older_than_x_days(os.getcwd()+'/'+dir+'/'+'stops.txt', days=1):
 
+        print("*** Downloading updated GTFS file***")
+
         # create temporary directory if it does not exist
         os.makedirs('dir', exist_ok=True)
 

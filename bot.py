@@ -9,7 +9,7 @@ Then, the bot is started and runs until we press Ctrl-C on the command line.
 
 Usage:
 Example of a bot-user conversation using ConversationHandler.
-Send /start to initiate the conversation.
+Send /track to initiate the conversation.
 Press Ctrl-C on the command line or send a signal to the process to stop the
 bot.
 """
@@ -66,20 +66,30 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # States
-BOROUGH, STATION, LOCATION = range(3)
+BOROUGH, STATION, INITIAL_STATE, GIVE_ROUTE_INFO = range(4)
 
 
-#async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, reply_keyboard_borough) -> int:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     user = update.message.from_user
-    """Starts the conversation and asks the user about their borough."""
-
     hour = datetime.now().hour
     greeting = "Good morning" if 5<=hour<12 else "Good afternoon" if hour<18 else "Good evening"
     await update.message.reply_text(
-        greeting + f", {user.first_name} \U0001F44B\n\n"+
-        "Select your borough from the list, or send /stop to stop talking to me.",
+        greeting + f", {user.first_name}!\n\n" +
+         "Use /track to start tracking New York City's subway arrival times \U0001F687\U0001F5FD\n\nUse /stop to stop this bot \U0000270B",
+        reply_markup=ReplyKeyboardRemove()
+    ),
+
+    return ConversationHandler.END
+
+
+#async def track(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def track(update: Update, context: ContextTypes.DEFAULT_TYPE, reply_keyboard_borough) -> int:
+
+    """Starts the tracking and asks the user about their borough."""
+
+    await update.message.reply_text(
+        "Select the borough from the list, or send /stop to stop talking to me.",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder="Manhattan, Brooklyn, Queens, The Bronx, or Staten Island?"
         ),
@@ -110,7 +120,7 @@ async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.message.from_user
     logger.info("Borough of %s: %s", user.first_name, update.message.text)
     await update.message.reply_text(
-        "Select your station",
+        "Select the station from the list",
         reply_markup=ReplyKeyboardMarkup(
             [[button] for button in df_stations], one_time_keyboard=True, input_field_placeholder=str(df_stations[0])+", "+str(df_stations[1])+", "+str(df_stations[2])+", "+str(df_stations[3])+", "+str(df_stations[4])+"..."
         ),
@@ -178,6 +188,39 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, 
     return BOROUGH
 
 
+async def ask_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trains) -> int:
+    
+    """Prints MTA's information of selected route."""
+
+    context.user_data["trains"] = df_trains
+    route_ids = df_trains['route_id'].values.ravel()
+
+    await update.message.reply_text(
+        "Which train are you interested in?",
+        reply_markup=ReplyKeyboardMarkup(
+            [[button] for button in route_ids], one_time_keyboard=True, input_field_placeholder=str(route_ids[0])+", "+str(route_ids[1])+", "+str(route_ids[2])+", "+str(route_ids[3])+", "+str(route_ids[4])+"..."
+        ),
+    )
+    
+    return GIVE_ROUTE_INFO
+
+
+async def give_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+
+    df_trains = context.user_data["trains"]
+
+    """Prints MTA's information of selected route."""
+    user = update.message.from_user
+    selected_train = update.message.text
+    logger.info("Train of %s: %s", user.first_name, selected_train)
+
+    await update.message.reply_text(
+        df_trains[df_trains['route_id'].str.contains(selected_train)]['route_desc'].values[0]
+    )
+
+    return INITIAL_STATE
+
+
 async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stops and ends the conversation."""
     user = update.message.from_user
@@ -189,11 +232,14 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
-async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Displays info on how to use the bot."""
     await update.message.reply_text(
-        "Use /start to start this bot and find New York City's realtime subway arrival times \U0001F687\U0001F5FD\n\nUse /stop to stop this bot \U0000270B"
+        "Use /track to start tracking New York City's subway arrival times \U0001F687\U0001F5FD\n\nUse /stop to stop this bot \U0000270B",
+        reply_markup=ReplyKeyboardRemove()
     )
+
+    return INITIAL_STATE
 
 
 async def error_borough(update: Update, context: ContextTypes.DEFAULT_TYPE, reply_keyboard_borough) -> int:
@@ -216,6 +262,20 @@ async def error_station(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     return STATION
 
 
+async def error_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+
+    df_trains = context.user_data["trains"]
+    route_ids = df_trains['route_id'].values.ravel()
+
+    await update.message.reply_text(
+        "Do not type the train name. Select a train from the list below.",
+        reply_markup=ReplyKeyboardMarkup(
+                [[button] for button in route_ids], one_time_keyboard=True, input_field_placeholder=str(route_ids[0])+", "+str(route_ids[1])+", "+str(route_ids[2])+", "+str(route_ids[3])+", "+str(route_ids[4])+"..."
+            ),
+    )
+    return GIVE_ROUTE_INFO
+
+
 def main() -> None:
 
     # Split the large txt files into smaller ones to fasten later processing
@@ -225,6 +285,9 @@ def main() -> None:
 
     # Select how many incoming trains to show in output
     trainsToShow = 5
+
+    # Load routes file
+    df_trains = pd.read_csv('gtfs static files/routes.txt')
     
     # Load stops file
     df_stops = pd.read_csv('gtfs static files/stops.txt')
@@ -249,15 +312,11 @@ def main() -> None:
     # Keyboard borough buttons
     reply_keyboard_borough = [["Manhattan","Brooklyn","Queens"],["The Bronx","Staten Island"]]
     
-    # partial start() function -> needed to pass additional arguments to it to avoid reading csv at each /start command
-    partial_start = partial(start, reply_keyboard_borough=reply_keyboard_borough)
-
-    # partial_station start() function -> needed to pass additional arguments to it to avoid reading csv at each /start command
+    # partial functions needed to pass additional arguments to them in order to avoid reading csv each time
+    partial_track = partial(track, reply_keyboard_borough=reply_keyboard_borough)
     partial_station = partial(station, df_trips=df_trips, df_stops=df_stops, df_stop_times=df_stop_times, df_shapes=df_shapes, trainsToShow=trainsToShow)
-
-    # partial error_borough() function -> needed to pass additional arguments to it
     partial_error_borough = partial(error_borough, reply_keyboard_borough=reply_keyboard_borough)
-
+    partial_ask_route_info = partial(ask_route_info, df_trains=df_trains)
 
     """Run the bot."""
 
@@ -267,26 +326,54 @@ def main() -> None:
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(BOT_TOKEN).concurrent_updates(True).build()
 
-    # Add conversation handler with the states BOROUGH, STATION, and LOCATION
+    # Add conversation handler with the states BOROUGH, STATION, ASK_ROUTE_INFO ,and GIVE_ROUTE_INFO
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", partial_start)],
+        entry_points=[CommandHandler("track", partial_track),CommandHandler("route_info", partial_ask_route_info)],
         states={ 
-            BOROUGH: [MessageHandler(filters.Regex(re.compile('|'.join(re.escape(x) for x in [j for i in reply_keyboard_borough for j in i]))), borough, block=False),
-                      CommandHandler("start", partial_start),
-                      CommandHandler("help", help),
-                      CommandHandler("stop", stop),
-                      MessageHandler(filters.ALL, partial_error_borough, block=False),
+            BOROUGH: [
+                MessageHandler(filters.Regex(re.compile(r'\b(?:%s)\b' % '|'.join(re.escape(x) for x in [j for i in reply_keyboard_borough for j in i]))), borough, block=False),
+                CommandHandler("start", start),
+                CommandHandler("track", partial_track),
+                CommandHandler("route_info", partial_ask_route_info),
+                CommandHandler("help", help),
+                CommandHandler("stop", stop),
+                MessageHandler(~filters.COMMAND, partial_error_borough, block=False),
             ],
-            STATION: [MessageHandler(filters.Regex(re.compile('|'.join(re.escape(x) for x in sortedStations))), partial_station, block=False),
-                      CommandHandler("start", partial_start),
-                      CommandHandler("help", help),
-                      CommandHandler("stop", stop),
-                      MessageHandler(filters.ALL, error_station, block=False),
+            STATION: [
+                MessageHandler(filters.Regex(re.compile(r'\b(?:%s)\b' % '|'.join(re.escape(x) for x in sortedStations))), partial_station, block=False),
+                CommandHandler("start", start),
+                CommandHandler("track", partial_track),
+                CommandHandler("route_info", partial_ask_route_info),
+                CommandHandler("help", help),
+                CommandHandler("stop", stop),
+                MessageHandler(~filters.COMMAND, error_station, block=False),
+            ],
+            INITIAL_STATE: [
+                CommandHandler("track", partial_track),
+                CommandHandler("start", start),
+                CommandHandler("route_info", partial_ask_route_info),
+                CommandHandler("help", help),
+                CommandHandler("stop", stop),
+            ],
+            GIVE_ROUTE_INFO: [
+                MessageHandler(filters.Regex(re.compile(r'\b(?:%s)\b' % '|'.join(x for x in df_trains['route_id'].values.ravel()))), give_route_info, block=False),
+                CommandHandler("start", start),
+                CommandHandler("track", partial_track),
+                CommandHandler("route_info", partial_ask_route_info),
+                CommandHandler("help", help),
+                CommandHandler("stop", stop),
+                MessageHandler(~filters.COMMAND, error_route_info, block=False),
             ],
         },
-        fallbacks=[CommandHandler("start", partial_start), CommandHandler("stop", stop)],
+        fallbacks=[CommandHandler("track", partial_track), CommandHandler("stop", stop)],
     )
     application.add_handler(conv_handler)
+
+    # Add start handler 
+    application.add_handler(CommandHandler("start", start))
+
+    # Add route_info handler 
+    application.add_handler(CommandHandler("route_info", partial_ask_route_info))
 
     # Add help handler 
     application.add_handler(CommandHandler("help", help))
@@ -295,7 +382,7 @@ def main() -> None:
     application.add_handler(CommandHandler("stop", stop))
 
     # Run the bot until Ctrl-C is pressed
-    application.run_polling(timeout=10)
+    application.run_polling(timeout=30)
 
 
 if __name__ == "__main__":

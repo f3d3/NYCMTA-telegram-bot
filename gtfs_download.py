@@ -30,7 +30,7 @@ filename = 'google_transit_supplemented.zip'
 
 while True:
 
-    if is_file_older_than_x_days(os.getcwd()+'/'+dir+'/'+'stops.txt', days=1):
+    if (not os.path.isdir(dir)) or (is_file_older_than_x_days(os.getcwd()+'/'+dir+'/'+'stops.txt', days=1)):
 
         print("*** Downloading updated GTFS file***")
 

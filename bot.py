@@ -402,7 +402,7 @@ import gtfs_download as gtfs_download
 def background_task():
     # run forever
     while True:
-        gtfs_download()
+        gtfs_download.gtfs_download()
             
 
 if __name__ == "__main__":

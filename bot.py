@@ -395,15 +395,27 @@ def main() -> None:
     # application.run_polling(timeout=30)
 
 
+from time import sleep
+from threading import Thread
+import gtfs_download as gtfs_download
+
+def background_task():
+    # run forever
+    while True:
+        gtfs_download()
+            
+
 if __name__ == "__main__":
-    main()
+    # main()
+
+    daemon = Thread(target=background_task, daemon=True, name='Backgrorund')
     
-    # while True:
-    #     try:
-    #         logger.info("Starting bot")
-    #         main()
-    #     except Exception:
-    #         logger.exception("Something bad happened. Restarting")
+    while True:
+        try:
+            logger.info("Starting bot")
+            main()
+        except Exception:
+            logger.exception("Something bad happened. Restarting")
 
 
     # loop = asyncio.get_event_loop()

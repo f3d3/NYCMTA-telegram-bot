@@ -1,1 +1,1 @@
-web: python gtfs_download.py $PORT
+web: python main.py $PORT

@@ -38,6 +38,8 @@ def gtfs_download(dir,filename):
             # download MTA's supplemented GTFS
             urllib.request.urlretrieve('http://web.mta.info/developers/files/google_transit_supplemented.zip', os.getcwd()+'/'+filename)
             
+            print("***GTFS file downloaded***")
+
             # unzip the downloaded file to the temporary directory
             with zipfile.ZipFile(filename, 'r') as zip_ref:
                 zip_ref.extractall(dir)

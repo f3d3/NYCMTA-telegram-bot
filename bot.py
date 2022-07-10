@@ -418,6 +418,13 @@ if __name__ == "__main__":
 
     if not os.path.isdir(dir):
         
+            import os
+            import urllib.request
+            import time
+            import zipfile
+            import os.path
+            import shutil
+        
             print("*** Downloading updated GTFS file***")
 
             # create temporary directory if it does not exist

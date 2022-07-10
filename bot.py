@@ -381,23 +381,23 @@ def main() -> None:
     # Add stop handler 
     application.add_handler(CommandHandler("stop", stop))
 
-    import os
-    PORT = int(os.environ.get('PORT', '8443'))
-    # add handlers
-    application.run_webhook(
-        listen = "0.0.0.0",
-        port = PORT,
-        url_path = BOT_TOKEN,
-        webhook_url = "https://nyc-subway-train-tracker.herokuapp.com/" + BOT_TOKEN
-    )
+    # import os
+    # PORT = int(os.environ.get('PORT', '8443'))
+    # # add handlers
+    # application.run_webhook(
+    #     listen = "0.0.0.0",
+    #     port = PORT,
+    #     url_path = BOT_TOKEN,
+    #     webhook_url = "https://nyc-subway-train-tracker.herokuapp.com/" + BOT_TOKEN
+    # )
 
     # Run the bot until Ctrl-C is pressed
-    # application.run_polling(timeout=30)
+    application.run_polling(timeout=30)
 
 
-from time import sleep
 from threading import Thread
 import gtfs_download as gtfs_download
+import os
 
 def background_task():
     # run forever
@@ -408,8 +408,14 @@ def background_task():
 if __name__ == "__main__":
     # main()
 
+    dir = 'gtfs static files'
+    filename = 'google_transit_supplemented.zip'
+
+    if not os.path.isdir(dir):
+        gtfs_download.gtfs_download(dir,filename)
+
     daemon = Thread(target=background_task, daemon=True, name='Backgrorund')
-    daemon.start()
+    daemon.start()  
     
     while True:
         try:

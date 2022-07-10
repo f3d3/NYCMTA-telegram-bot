@@ -417,7 +417,23 @@ if __name__ == "__main__":
     filename = 'google_transit_supplemented.zip'
 
     if not os.path.isdir(dir):
-        gtfs_download.gtfs_download(dir,filename)
+        
+            print("*** Downloading updated GTFS file***")
+
+            # create temporary directory if it does not exist
+            os.makedirs('dir', exist_ok=True)
+
+            # download MTA's supplemented GTFS
+            urllib.request.urlretrieve('http://web.mta.info/developers/files/google_transit_supplemented.zip', os.getcwd()+'/'+filename)
+            
+            print("***GTFS file downloaded***")
+
+            # unzip the downloaded file to the temporary directory
+            with zipfile.ZipFile(filename, 'r') as zip_ref:
+                zip_ref.extractall(dir)
+
+            # delete the downloaded file and the temporary directory containing it
+            shutil.rmtree(dir, ignore_errors=True)
 
     main()
     

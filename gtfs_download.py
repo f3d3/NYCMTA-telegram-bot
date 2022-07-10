@@ -24,28 +24,26 @@ def is_file_older_than_x_days(file, days=1):
     return ((time.time() - file_time) / 3600 > 24*days)
 
 
-dir = 'gtfs static files'
-filename = 'google_transit_supplemented.zip'
+def gtfs_download(dir,filename):
 
+    while True:
 
-while True:
+        if (not os.path.isdir(dir)) or (is_file_older_than_x_days(os.getcwd()+'/'+dir+'/'+'stops.txt', days=1)):
 
-    if (not os.path.isdir(dir)) or (is_file_older_than_x_days(os.getcwd()+'/'+dir+'/'+'stops.txt', days=1)):
+            print("*** Downloading updated GTFS file***")
 
-        print("*** Downloading updated GTFS file***")
+            # create temporary directory if it does not exist
+            os.makedirs('dir', exist_ok=True)
 
-        # create temporary directory if it does not exist
-        os.makedirs('dir', exist_ok=True)
+            # download MTA's supplemented GTFS
+            urllib.request.urlretrieve('http://web.mta.info/developers/files/google_transit_supplemented.zip', os.getcwd()+'/'+filename)
+            
+            # unzip the downloaded file to the temporary directory
+            with zipfile.ZipFile(filename, 'r') as zip_ref:
+                zip_ref.extractall(dir)
 
-        # download MTA's supplemented GTFS
-        urllib.request.urlretrieve('http://web.mta.info/developers/files/google_transit_supplemented.zip', os.getcwd()+'/'+filename)
-        
-        # unzip the downloaded file to the temporary directory
-        with zipfile.ZipFile(filename, 'r') as zip_ref:
-            zip_ref.extractall(dir)
+            # delete the downloaded file and the temporary directory containing it
+            shutil.rmtree(dir, ignore_errors=True)
 
-        # delete the downloaded file and the temporary directory containing it
-        shutil.rmtree(dir, ignore_errors=True)
-
-    # next check in 1 hour
-    time.sleep(3600) # 3600 seconds = 1 hours.
+        # next check in 1 hour
+        time.sleep(3600) # 3600 seconds = 1 hours.

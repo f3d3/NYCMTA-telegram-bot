@@ -381,18 +381,18 @@ def main() -> None:
     # Add stop handler 
     application.add_handler(CommandHandler("stop", stop))
 
-    # import os
-    # PORT = int(os.environ.get('PORT', '8443'))
-    # # add handlers
-    # application.run_webhook(
-    #     listen = "0.0.0.0",
-    #     port = PORT,
-    #     url_path = BOT_TOKEN,
-    #     webhook_url = "https://nyc-subway-train-tracker.herokuapp.com/" + BOT_TOKEN
-    # )
+    import os
+    PORT = int(os.environ.get('PORT', '8443'))
+    # add handlers
+    application.run_webhook(
+        listen = "0.0.0.0",
+        port = PORT,
+        url_path = BOT_TOKEN,
+        webhook_url = "https://nyc-subway-train-tracker.herokuapp.com/" + BOT_TOKEN
+    )
 
     # Run the bot until Ctrl-C is pressed
-    application.run_polling(timeout=30)
+    # application.run_polling(timeout=30)
 
 
 from threading import Thread

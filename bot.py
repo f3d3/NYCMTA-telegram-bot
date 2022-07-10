@@ -382,7 +382,7 @@ def main() -> None:
     application.add_handler(CommandHandler("stop", stop))
 
     import os
-    PORT = int(os.environ.get('PORT', 13978))
+    PORT = int(os.environ.get('PORT', default=8000))
     # add handlers
     application.run_webhook(
         listen = "0.0.0.0",

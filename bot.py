@@ -416,7 +416,7 @@ if __name__ == "__main__":
     dir = 'gtfs static files'
     filename = 'google_transit_supplemented.zip'
 
-    if not os.path.isdir(dir):
+    if  True:
         
             import os
             import urllib.request

@@ -381,18 +381,21 @@ def main() -> None:
     # Add stop handler 
     application.add_handler(CommandHandler("stop", stop))
 
-    import os
-    PORT = int(os.environ.get('PORT', default=8000))
-    # add handlers
-    application.run_webhook(
-        listen = "0.0.0.0",
-        port = PORT,
-        url_path = BOT_TOKEN,
-        webhook_url = "https://nyc-subway-train-tracker.herokuapp.com/" + BOT_TOKEN
-    )
+    PRODUCTION = True
 
-    # Run the bot until Ctrl-C is pressed
-    # application.run_polling(timeout=30)
+    if PRODUCTION:
+        import os
+        PORT = int(os.environ.get('PORT', '5000'))
+        # add handlers
+        application.run_webhook(
+            listen = "0.0.0.0",
+            port = PORT,
+            url_path = BOT_TOKEN,
+            webhook_url = "https://nyc-subway-train-tracker.herokuapp.com/" + BOT_TOKEN
+        )
+    else:
+        # Run the bot until Ctrl-C is pressed
+        application.run_polling(timeout=30)
 
 
 from threading import Thread
@@ -414,6 +417,8 @@ if __name__ == "__main__":
     if not os.path.isdir(dir):
         gtfs_download.gtfs_download(dir,filename)
 
+    main()
+    
     daemon = Thread(target=background_task, daemon=True, name='Backgrorund')
     daemon.start()  
     

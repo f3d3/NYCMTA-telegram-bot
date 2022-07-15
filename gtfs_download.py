@@ -45,7 +45,13 @@ def gtfs_download(dir,filename):
                 zip_ref.extractall(dir)
 
             # delete the downloaded file and the temporary directory containing it
-            shutil.rmtree(dir, ignore_errors=True)
+            shutil.rmtree('dir', ignore_errors=True)
+
+            ## If file exists, delete it ##
+            if os.path.isfile(filename):
+                os.remove(filename)
+            else:    ## Show an error ##
+                print("Error: %s file not found" % filename)
 
         # next check in 1 hour
         time.sleep(3600) # 3600 seconds = 1 hours.

@@ -32,6 +32,8 @@ from datetime import date, datetime
 
 # import asyncio
 
+import os
+
 import logging
 
 from telegram import __version__ as TG_VER
@@ -384,9 +386,7 @@ def main() -> None:
     application.add_handler(CommandHandler("stop", stop))
 
     PRODUCTION = True
-
     if PRODUCTION:
-        import os
         PORT = int(os.environ.get('PORT', '5000'))
         # add handlers
         application.run_webhook(
@@ -402,49 +402,22 @@ def main() -> None:
 
 from threading import Thread
 import gtfs_download as gtfs_download
-import os
 
-def background_task():
+def background_task(dir,filename):
     # run forever
     while True:
-        gtfs_download.gtfs_download()
+        gtfs_download.gtfs_download(dir,filename)
             
 
 if __name__ == "__main__":
-    # main()
-
+    
     dir = 'gtfs static files'
     filename = 'google_transit_supplemented.zip'
 
-    if  True:
-        
-            import os
-            import urllib.request
-            import time
-            import zipfile
-            import os.path
-            import shutil
-        
-            print("*** Downloading updated GTFS file***")
-
-            # create temporary directory if it does not exist
-            os.makedirs('dir', exist_ok=True)
-
-            # download MTA's supplemented GTFS
-            urllib.request.urlretrieve('http://web.mta.info/developers/files/google_transit_supplemented.zip', os.getcwd()+'/'+filename)
-            
-            print("***GTFS file downloaded***")
-
-            # unzip the downloaded file to the temporary directory
-            with zipfile.ZipFile(filename, 'r') as zip_ref:
-                zip_ref.extractall(dir)
-
-            # delete the downloaded file and the temporary directory containing it
-            shutil.rmtree(dir, ignore_errors=True)
-
-    main()
+    if not os.path.isdir(dir):
+        gtfs_download.gtfs_download(dir,filename)
     
-    daemon = Thread(target=background_task, daemon=True, name='Backgrorund')
+    daemon = Thread(target=background_task, daemon=True, args=(dir,filename), name='Backgrorund')
     daemon.start()  
     
     while True:
@@ -452,7 +425,8 @@ if __name__ == "__main__":
             logger.info("Starting bot")
             main()
         except Exception:
-            logger.exception("Something bad happened. Restarting")
+            logger.exception("Something bad happened. Restarting bot.")
+
 
 
     # loop = asyncio.get_event_loop()

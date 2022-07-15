@@ -406,7 +406,7 @@ import gtfs_download as gtfs_download
 def background_task(dir,filename):
     # run forever
     while True:
-        gtfs_download.gtfs_download(dir,filename)
+        gtfs_download.gtfs_download(dir,filename,True)
             
 
 if __name__ == "__main__":
@@ -415,7 +415,7 @@ if __name__ == "__main__":
     filename = 'google_transit_supplemented.zip'
 
     if not os.path.isdir(dir):
-        gtfs_download.gtfs_download(dir,filename)
+        gtfs_download.gtfs_download(dir,filename,False)
     
     daemon = Thread(target=background_task, daemon=True, args=(dir,filename), name='Backgrorund')
     daemon.start()  

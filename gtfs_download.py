@@ -24,7 +24,7 @@ def is_file_older_than_x_days(file, days=1):
     return ((time.time() - file_time) / 3600 > 24*days)
 
 
-def gtfs_download(dir,filename):
+def gtfs_download(dir,filename,background_activity):
 
     while True:
 
@@ -53,5 +53,6 @@ def gtfs_download(dir,filename):
             else:    ## Show an error ##
                 print("Error: %s file not found" % filename)
 
-        # next check in 1 hour
-        time.sleep(3600) # 3600 seconds = 1 hours.
+        if background_activity:
+            # next check in 1 hour
+            time.sleep(3600) # 3600 seconds = 1 hours.

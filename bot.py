@@ -422,12 +422,14 @@ if __name__ == "__main__":
     daemon.start()  
     print("*** Daemon running ***")
 
-    while True:
-        try:
-            logger.info("Starting bot")
-            main()
-        except Exception:
-            logger.exception("Something bad happened. Restarting bot.")
+
+    main()
+    # while True:
+    #     try:
+    #         logger.info("Starting bot")
+    #         main()
+    #     except Exception:
+    #         logger.exception("Something bad happened. Restarting bot.")
 
 
 

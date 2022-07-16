@@ -30,7 +30,7 @@ def gtfs_download(dir,filename,background_activity):
 
         if (not os.path.isdir(dir)) or (is_file_older_than_x_days(os.getcwd()+'/'+dir+'/'+'stops.txt', days=1)):
 
-            print("*** Downloading updated GTFS file***")
+            print("*** Downloading updated GTFS file ***")
 
             # create temporary directory if it does not exist
             os.makedirs('dir', exist_ok=True)
@@ -38,7 +38,7 @@ def gtfs_download(dir,filename,background_activity):
             # download MTA's supplemented GTFS
             urllib.request.urlretrieve('http://web.mta.info/developers/files/google_transit_supplemented.zip', os.getcwd()+'/'+filename)
             
-            print("***GTFS file downloaded***")
+            print("*** GTFS file downloaded ***")
 
             # unzip the downloaded file to the temporary directory
             with zipfile.ZipFile(filename, 'r') as zip_ref:
@@ -55,4 +55,6 @@ def gtfs_download(dir,filename,background_activity):
 
         if background_activity:
             # next check in 1 hour
-            time.sleep(3600) # 3600 seconds = 1 hours.
+            time.sleep(3600) # 3600 seconds = 1 hours
+        else:
+            break

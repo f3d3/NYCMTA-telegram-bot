@@ -417,9 +417,11 @@ if __name__ == "__main__":
     if not os.path.isdir(dir):
         gtfs_download.gtfs_download(dir,filename,False)
     
-    daemon = Thread(target=background_task, daemon=True, args=(dir,filename), name='Backgrorund')
+    print("*** Starting daemon ***")
+    daemon = Thread(target=background_task, daemon=True, args=(dir,filename), name='Background')
     daemon.start()  
-    
+    print("*** Daemon running ***")
+
     while True:
         try:
             logger.info("Starting bot")

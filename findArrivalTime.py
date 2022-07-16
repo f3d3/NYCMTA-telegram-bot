@@ -39,21 +39,18 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
     MTA_API_key = "ymFcaLS9JBabZieClasw2XzdXnedgfE8QxBTUED0"
     
     subwayDict =	{
-        "BDFM"   : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-bdfm",  # B,D,F,M
-        "ACEH"   : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace",   # A,C,E,H
-        "1234567": "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs",       # 1,2,3,4,5,6,7
-        "G"      : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g",     # G
-        "NQRW"   : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-nqrw",  # N,Q,R,W
-        "JZ"     : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-jz",    # J,Z
-        "L"      : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-l",     # L
-        "SIR"    : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-si"     # SIR (Staten Island Railway)
+        "1-2-3-4-5-6-7-GS": "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs",       # 1,2,3,4,5,6,7
+        "A-C-E-H-FS"      : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace",   # A,C,E
+        "B-D-F-M"         : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-bdfm",  # B,D,F,M
+        "G"               : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g",     # G
+        "N-Q-R-W"         : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-nqrw",  # N,Q,R,W
+        "J-Z"             : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-jz",    # J,Z
+        "L"               : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-l",     # L
+        "SI"             : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-si"     # SIR (Staten Island Railway)
     }
 
     # Find the selected station's stop_id
     stop_ids = (df_stops.loc[df_stops['stop_name']==context.user_data["station"]]['stop_id']).tolist()
-    
-    from timeit import default_timer as timer
-    start = timer()
 
     # Since train names can't be extracted from stop_ids reliably, get the selected station's coordinates 
     df_stops_coord = df_stops.loc[df_stops['stop_name']==context.user_data["station"]][['stop_lat','stop_lon']]
@@ -64,18 +61,25 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
     df_shapes.shape_pt_lat = df_shapes.shape_pt_lat.astype(float); df_shapes.shape_pt_lon = df_shapes.shape_pt_lon.astype(float)
     
     # Since sometimes station coordinates differ between stops.txt and shapes.txt, don't do an inner join between the two but find closest station by Euclidean distance
-    distances = (((df_shapes['shape_pt_lat'].sub(df_stops_coord.iloc[0,0], axis=0))**2+(df_shapes['shape_pt_lon'].sub(df_stops_coord.iloc[0,1], axis=0))**2)**0.5).to_numpy()
+    distances = [(((df_shapes['shape_pt_lat'].sub(df_stops_coord.iloc[i,0], axis=0))**2+(df_shapes['shape_pt_lon'].sub(df_stops_coord.iloc[i,1], axis=0))**2)**0.5).to_numpy() for i in range(len(df_stops_coord.index))]
 
-    # Find indexes of stations with minimum distances (one index per each train serving the minimum distance station)
-    min_distance_shape_id = df_shapes.iloc[np.where(distances==distances.min())]['shape_id']
+    # Iterate on each station
+    servingTrains = set()
+    min_distance_shape_id = set()
+    for i in range(len(df_stops_coord.index)):
+        # Find indexes of stations with minimum distances (one index per each train serving the minimum distance station)
+        min_distance_shape_id.update(df_shapes.iloc[np.where(distances[i]==distances[i].min())]['shape_id'])
+        # Extract first char of the obtained shape_id's
+        servingTrains.update([m.partition(".")[0] for m in min_distance_shape_id])
 
-    # Extract first char of the obtained shape_id's
-    servingTrains = list(set([st[0] for st in min_distance_shape_id.tolist()]))
-
+    # Convert set to list
+    min_distance_shape_id = list(min_distance_shape_id)
+    servingTrains = list(servingTrains)
+    
     # Check only the serving trains GTFS feeds to save times
-    feedsToCheck = [value for key, value in subwayDict.items() if any(substring in key for substring in servingTrains)]
+    feedsToCheck = [value for key, value in subwayDict.items() if any(st in key.partition("-") for st in servingTrains)]
 
-    # request parameters
+    # Request parameters
     headers = {'x-api-key': MTA_API_key}
 
     df = pd.DataFrame(columns=['Trip_ID', 'Train', 'Station', 'Time'], index=range(trainsToShow))
@@ -113,7 +117,14 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
     
     destinations = []; directions = []; waiting_times = []
 
-    for i in range(0,min(trainsToShow,len(df.index)-1)):
+    for i in range(min(trainsToShow,len(df.index))):
+
+        input_trip_id = df.loc[i,'Trip_ID']
+
+        # dest = df_trips[df_trips['trip_id'].str.contains(input_trip_id, regex=False)]['trip_headsign']
+        # t_id = df_trips[df_trips['trip_id'].str.contains(input_trip_id, regex=False)]['trip_id']
+        # dir = t_id.partition("..")[1]
+
 
         input_station_id = df.loc[i,'Station']
 
@@ -123,15 +134,7 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
         # dest, dir = fd.findDestination_async(df.loc[i,'Station'], df_trips, df_stop_times)
         # dest, dir = fd.findDestination(input_station_id, df_trips, df_stop_times)
 
-
-
-        # Select trips that match the current day of the week to speed up later processing
-        if date.today().weekday() == 5: # Saturday
-            df_trip_id = df_stop_times.loc[(df_stop_times['stop_id'] == input_station_id),['trip_id','arrival_time']]
-        elif date.today().weekday() == 6: # Sunday
-            df_trip_id = df_stop_times.loc[(df_stop_times['stop_id'] == input_station_id),['trip_id','arrival_time']]
-        else:
-            df_trip_id = df_stop_times.loc[(df_stop_times['stop_id'] == input_station_id),['trip_id','arrival_time']]
+        df_trip_id = df_stop_times.loc[(df_stop_times['stop_id'] == input_station_id),['trip_id','arrival_time']]
 
         # Fix hour values greater than 24 (to correct MTA's bugs)
         twenty_fours = df_trip_id['arrival_time'].str[-8:-6].astype(int) >= 24
@@ -140,38 +143,42 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
         df_trip_id.loc[twenty_fours, 'arrival_time'] = df_trip_id.loc[twenty_fours, 'arrival_time'] + timedelta(days=1) # add 1 day to routes with hour that was greater than 24
 
         # Save current time as a datetime object
-        reftime = datetime.now().strftime('%H:%M:%S')
+        reftime = datetime.utcnow().strftime('%H:%M:%S')
         reftime = datetime.strptime(reftime, "%H:%M:%S")
 
+        df_trip_id = df_trip_id.sort_values(by=['arrival_time'])
+        
+
         # Find trip with closest scheduled departure to current time
+        # df_trip_id = df_trip_id.loc[[(abs(df_trip_id.iloc[:, 1]-reftime)).idxmin()]]
         df_trip_id = df_trip_id.iloc[[df_trip_id.arrival_time.searchsorted(reftime)]]
 
         # Select train headsign and direction corresponding to selected trip
         temp = df_trips[df_trips['trip_id'].isin(df_trip_id['trip_id'])]
         finaldestination = temp.iloc[0]['trip_headsign']
         direction = temp.iloc[0]['trip_id']
-        direction = direction[-4]
+        direction = direction.split(".")[-1] 
+        direction = direction[0] 
 
         dest = finaldestination
         dir = direction
 
-
-        
         destinations.append(dest)
         directions.append(dir)
 
-    for i in range(0,min(trainsToShow,len(df.index)-1)):
+    for i in range(min(trainsToShow,len(df.index))):
         #waiting_times.append(round((int(df['Time'].values[i])-int(time.time()))/60 * 2)/2) # round waiting minutes to nearest 0.5
         waiting_times.append(math.ceil((int(df['Time'].values[i])-int(time.time()))/60)) # round up waiting minutes
  
-
+    # Get train names and substitute shuttle train names with 'S'
     trains = df['Train'].values
+    trains = ['S' if t=='GS' or t=='FS' or t=='H' else t for t in trains]
 
-    waiting_times, trains, destinations, directions = zip(*sorted(zip(waiting_times, trains, destinations, directions), key=lambda x: x[0])) # sort the variables by waiting_timese
+    waiting_times, trains, destinations, directions = zip(*sorted(zip(waiting_times, trains, destinations, directions), key=lambda x: x[0])) # sort the variables by waiting_times
 
 
     print("\n*** Upcoming Trains ***\n")
-    for i in range(0,min(trainsToShow,len(df.index)-1)):
+    for i in range(min(trainsToShow,len(df.index))):
         print("Train " + trains[i] + " (" + destinations[i] + ") - " + str(waiting_times[i]) + " min")
 
     return trains, destinations, waiting_times, directions

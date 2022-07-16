@@ -61,7 +61,6 @@ from telegram.ext import (
 
 import make_async as ma
 
-import urllib
 
 # Enable logging
 logging.basicConfig(
@@ -119,7 +118,7 @@ async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         case 'Staten Island':
             df_stations = pd.read_csv('cache/stops_names/staten_island.txt',header=None).values.ravel()
 
-    context.user_data["stations"] = df_stations
+    context.user_data["station_list"] = df_stations
 
     user = update.message.from_user
     logger.info("Borough of %s: %s", user.first_name, update.message.text)
@@ -149,6 +148,12 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, 
     user = update.message.from_user
     logger.info("Station of %s: %s", user.first_name, update.message.text)
 
+
+    if update.message.text == 'Broad Channel':
+        await update.message.reply_markdown_v2(
+            '__*Attention*__: Broad Channel train schedule might be incomplete and/or train headsigns might be wrong\.',
+            reply_markup=ReplyKeyboardRemove(),
+        )
 
     # tasks = [asyncio.to_thread(partial_findArrivalTime)]
     # trains, destinations, waiting_times, directions = await asyncio.gather(*tasks)
@@ -260,7 +265,7 @@ async def error_station(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await update.message.reply_text(
         "Do not type the station name. Select a station from the list below.",
         reply_markup=ReplyKeyboardMarkup(
-                [[button] for button in context.user_data["stations"]], one_time_keyboard=True, input_field_placeholder=str(context.user_data["stations"][0])+", "+str(context.user_data["stations"][1])+", "+str(context.user_data["stations"][2])+", "+str(context.user_data["stations"][3])+", "+str(context.user_data["stations"][4])+"..."
+                [[button] for button in context.user_data["station_list"]], one_time_keyboard=True, input_field_placeholder=str(context.user_data["station_list"][0])+", "+str(context.user_data["station_list"][1])+", "+str(context.user_data["station_list"][2])+", "+str(context.user_data["station_list"][3])+", "+str(context.user_data["station_list"][4])+"..."
             ),
     )
     return STATION
@@ -288,7 +293,7 @@ def main() -> None:
     cc.cache_stop_times()
 
     # Select how many incoming trains to show in output
-    trainsToShow = 5
+    trainsToShow = 10
 
     # Load routes file
     df_trains = pd.read_csv('gtfs static files/routes.txt')
@@ -385,7 +390,9 @@ def main() -> None:
     # Add stop handler 
     application.add_handler(CommandHandler("stop", stop))
 
-    PRODUCTION = True
+
+    # Heroku implementation
+    PRODUCTION = False
     if PRODUCTION:
         PORT = int(os.environ.get('PORT', 5000))
         # add handlers

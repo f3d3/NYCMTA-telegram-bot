@@ -387,7 +387,7 @@ def main() -> None:
 
     PRODUCTION = True
     if PRODUCTION:
-        PORT = int(os.environ.get('PORT', '5000'))
+        PORT = int(os.environ.get('PORT', 5000))
         # add handlers
         application.run_webhook(
             listen = "0.0.0.0",

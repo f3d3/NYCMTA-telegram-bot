@@ -392,7 +392,7 @@ def main() -> None:
 
 
     # Heroku implementation
-    PRODUCTION = False
+    PRODUCTION = True
     if PRODUCTION:
         PORT = int(os.environ.get('PORT', 5000))
         # add handlers

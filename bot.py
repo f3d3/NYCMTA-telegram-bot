@@ -19,6 +19,9 @@ import re
 
 from functools import *
 
+import functools
+import operator
+
 # import time
 # from concurrent.futures import ThreadPoolExecutor
 # _executor = ThreadPoolExecutor(10)
@@ -36,7 +39,7 @@ import os
 
 import logging
 
-from telegram import __version__ as TG_VER
+from telegram import Bot, __version__ as TG_VER
 
 try:
     from telegram import __version_info__
@@ -49,7 +52,11 @@ if __version_info__ < (20, 0, 0, "alpha", 1):
         f"{TG_VER} version of this example, "
         f"visit https://docs.python-telegram-bot.org/en/v{TG_VER}/examples.html"
     )
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+
+
+
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, Chat
+from telegram.constants import ChatAction
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -69,32 +76,35 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # States
-BOROUGH, STATION, INITIAL_STATE, GIVE_ROUTE_INFO = range(4)
+BOROUGH, STATION, INITIAL_STATE, GIVE_ROUTE_INFO, FORWARD_USER_BUG_REPORT = range(5)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-
+    
     user = update.message.from_user
     hour = datetime.now().hour
     greeting = "Good morning" if 5<=hour<12 else "Good afternoon" if hour<18 else "Good evening"
     await update.message.reply_text(
         greeting + f", {user.first_name}!\n\n" +
-         "Use /track to start tracking New York City's subway arrival times \U0001F687\U0001F5FD\n\nUse /stop to stop this bot \U0000270B",
+            "Use /track to start tracking New York City's subway arrival times \U0001F687\U0001F5FD\n\n"+
+            "Use /route_info to get information on train operations \U00002139\n\n"+
+            "Use /report_bug to report something broken within the bot \U0000274C\n\n"+
+            "Use /stop to stop this bot \U0000270B",
         reply_markup=ReplyKeyboardRemove()
     ),
 
-    return ConversationHandler.END
+    return INITIAL_STATE
 
 
 #async def track(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-async def track(update: Update, context: ContextTypes.DEFAULT_TYPE, reply_keyboard_borough) -> int:
+async def track(update: Update, context: ContextTypes.DEFAULT_TYPE, reply_keyboard_borough,input_field_placeholder) -> int:
 
     """Starts the tracking and asks the user about their borough."""
 
     await update.message.reply_text(
         "Select the borough from the list, or send /stop to stop talking to me.",
         reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder="Manhattan, Brooklyn, Queens, The Bronx, or Staten Island?"
+            reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder=input_field_placeholder
         ),
     )
 
@@ -102,30 +112,18 @@ async def track(update: Update, context: ContextTypes.DEFAULT_TYPE, reply_keyboa
 
 
 # Ask user for station
-async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE, dictStations) -> int:
     """Stores the borough and asks for the station."""
     context.user_data["borough"] = update.message.text
 
-    match update.message.text:
-        case 'Manhattan':
-            df_stations = pd.read_csv('cache/stops_names/manhattan.txt',header=None).values.ravel()
-        case 'Brooklyn':
-            df_stations = pd.read_csv('cache/stops_names/brooklyn.txt',header=None).values.ravel()
-        case 'Queens':
-            df_stations = pd.read_csv('cache/stops_names/queens.txt',header=None).values.ravel()
-        case 'The Bronx':
-            df_stations = pd.read_csv('cache/stops_names/the_bronx.txt',header=None).values.ravel()
-        case 'Staten Island':
-            df_stations = pd.read_csv('cache/stops_names/staten_island.txt',header=None).values.ravel()
-
-    context.user_data["station_list"] = df_stations
+    df_stations = dictStations[update.message.text]
 
     user = update.message.from_user
     logger.info("Borough of %s: %s", user.first_name, update.message.text)
     await update.message.reply_text(
         "Select the station from the list",
         reply_markup=ReplyKeyboardMarkup(
-            [[button] for button in df_stations], one_time_keyboard=True, input_field_placeholder=str(df_stations[0])+", "+str(df_stations[1])+", "+str(df_stations[2])+", "+str(df_stations[3])+", "+str(df_stations[4])+"..."
+            [[button] for button in df_stations], one_time_keyboard=True, input_field_placeholder=df_stations[0]+", "+df_stations[1]+", "+df_stations[2]+", "+df_stations[3]+", "+df_stations[4]+"..."
         ),
     )
 
@@ -135,20 +133,20 @@ async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # partial_findArrivalTime = partial(fat.findArrivalTime, update=Update, context=ContextTypes.bot_data)
 
 
+# Process the borough and station and find arrival times
+async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, reply_keyboard_borough, input_field_placeholder) -> int:
 
-# Process the borough and staion and find arrival times
-async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow) -> int:
-
+    # await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     await update.message.reply_text(
         "Processing... \U0001F52E",
     )
 
     """Stores the selected station and find arrival time."""
-    context.user_data["station"] = update.message.text
+    userStation = update.message.text
     user = update.message.from_user
     logger.info("Station of %s: %s", user.first_name, update.message.text)
 
-
+    """ Send warning about Broad Channel ---> Broad Channel fixed now by skipping H19 trains?"""
     if update.message.text == 'Broad Channel':
         await update.message.reply_markdown_v2(
             '__*Attention*__: Broad Channel train schedule might be incomplete and/or train headsigns might be wrong\.',
@@ -165,7 +163,7 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, 
 
     # trains, destinations, waiting_times, directions = await ma.make_async(partial_findArrivalTime)
 
-    trains, destinations, waiting_times, directions = await fat.findArrivalTime_async(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow)
+    trains, destinations, waiting_times, directions = await fat.findArrivalTime_async(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation)
 
     # trains, destinations, waiting_times, directions = fat.findArrivalTime_async(update, context)
 
@@ -182,15 +180,10 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, 
         reply_markup=ReplyKeyboardRemove(),
     )
 
-    reply_keyboard = [
-                        ["Manhattan","Brooklyn","Queens"],
-                        ["The Bronx","Staten Island"]
-                        ]
-
     await update.message.reply_text(
         "Select another borough and station, or send /stop if you don't want to \U0000270B",
         reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard, one_time_keyboard=True, input_field_placeholder="Manhattan, Brooklyn, Queens, The Bronx, or Staten Island?"
+            reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder=input_field_placeholder
         ),
     )
 
@@ -202,12 +195,14 @@ async def ask_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE, df_
     """Prints MTA's information of selected route."""
 
     context.user_data["trains"] = df_trains
-    route_ids = df_trains['route_id'].values.ravel()
+    routes = df_trains['route_id'].values
+
+    routes = ["42nd Street Shuttle (S)" if r=='GS' else "Franklin Avenue Shuttle (S)" if r=='FS' else "Rockaway Park Shuttle (S)" if r=='H' else r for r in routes]
 
     await update.message.reply_text(
         "Which train are you interested in?",
         reply_markup=ReplyKeyboardMarkup(
-            [[button] for button in route_ids], one_time_keyboard=True, input_field_placeholder=str(route_ids[0])+", "+str(route_ids[1])+", "+str(route_ids[2])+", "+str(route_ids[3])+", "+str(route_ids[4])+"..."
+            [[button] for button in routes], one_time_keyboard=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
         ),
     )
     
@@ -228,6 +223,28 @@ async def give_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
 
     return INITIAL_STATE
+
+
+async def get_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+
+    """Allow users to report bug with the bot"""
+    await update.message.reply_text(
+        "This command is intended for bug reporting only. Send your message below with as many details as possible.",
+    )
+
+    return FORWARD_USER_BUG_REPORT
+
+
+async def forward_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+
+    """Forward user bug reports to private channel"""
+    await update.message.forward(chat_id='-1001708464995')
+
+    await update.message.reply_text(
+        "Thank you for reporting a bug. We are doing our best to fix them as soon as possible \U0001F64F",
+    )
+
+    return ConversationHandler.END
 
 
 async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -251,21 +268,28 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return INITIAL_STATE
 
 
-async def error_borough(update: Update, context: ContextTypes.DEFAULT_TYPE, reply_keyboard_borough) -> int:
+async def error_borough(update: Update, context: ContextTypes.DEFAULT_TYPE, reply_keyboard_borough,input_field_placeholder) -> int:
+
+    # Convert list of lists into a flat list
+    boroughs = functools.reduce(operator.iconcat, reply_keyboard_borough, [])
+
     await update.message.reply_text(
         "Do not type the borough name. Select a borough from the list below.",
         reply_markup=ReplyKeyboardMarkup(
-                reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder="Manhattan, Brooklyn, Queens, The Bronx, or Staten Island?"
+                reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder=input_field_placeholder
             ),
     )
     return BOROUGH
 
 
-async def error_station(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def error_station(update: Update, context: ContextTypes.DEFAULT_TYPE, dictStations) -> int:
+
+    df_stations = dictStations[context.user_data["borough"]]
+
     await update.message.reply_text(
-        "Do not type the station name. Select a station from the list below.",
+        "Do not type the station name. Select a station from the list.",
         reply_markup=ReplyKeyboardMarkup(
-                [[button] for button in context.user_data["station_list"]], one_time_keyboard=True, input_field_placeholder=str(context.user_data["station_list"][0])+", "+str(context.user_data["station_list"][1])+", "+str(context.user_data["station_list"][2])+", "+str(context.user_data["station_list"][3])+", "+str(context.user_data["station_list"][4])+"..."
+                [[button] for button in df_stations], one_time_keyboard=True, input_field_placeholder=df_stations[0]+", "+df_stations[1]+", "+df_stations[2]+", "+df_stations[3]+", "+df_stations[4]+"..."
             ),
     )
     return STATION
@@ -274,12 +298,12 @@ async def error_station(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def error_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     df_trains = context.user_data["trains"]
-    route_ids = df_trains['route_id'].values.ravel()
+    routes = df_trains['route_id'].values
 
     await update.message.reply_text(
         "Do not type the train name. Select a train from the list below.",
         reply_markup=ReplyKeyboardMarkup(
-                [[button] for button in route_ids], one_time_keyboard=True, input_field_placeholder=str(route_ids[0])+", "+str(route_ids[1])+", "+str(route_ids[2])+", "+str(route_ids[3])+", "+str(route_ids[4])+"..."
+                [[button] for button in routes], one_time_keyboard=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
             ),
     )
     return GIVE_ROUTE_INFO
@@ -293,7 +317,7 @@ def main() -> None:
     cc.cache_stop_times()
 
     # Select how many incoming trains to show in output
-    trainsToShow = 10
+    trainsToShow = 5
 
     # Load routes file
     df_trains = pd.read_csv('gtfs static files/routes.txt')
@@ -318,13 +342,30 @@ def main() -> None:
         df_stop_times = pd.read_csv('cache/stop_times/weekday.csv')
         df_trips = pd.read_csv('cache/trips/weekday.csv')
 
+    dictStations = {
+        "Manhattan": pd.read_csv('cache/stops_names/manhattan.txt',header=None).values.ravel(),
+        "Brooklyn": pd.read_csv('cache/stops_names/brooklyn.txt',header=None).values.ravel(),
+        "Queens": pd.read_csv('cache/stops_names/queens.txt',header=None).values.ravel(),
+        "The Bronx": pd.read_csv('cache/stops_names/the_bronx.txt',header=None).values.ravel(),
+        "Staten Island": pd.read_csv('cache/stops_names/staten_island.txt',header=None).values.ravel()
+    }
+
     # Keyboard borough buttons
     reply_keyboard_borough = [["Manhattan","Brooklyn","Queens"],["The Bronx","Staten Island"]]
+
+    # Convert list of lists into a flat list
+    boroughs = functools.reduce(operator.iconcat, reply_keyboard_borough, [])
+
+    # Make input field placeholder for borough choice
+    input_field_placeholder = boroughs[0]+", "+boroughs[1]+", "+boroughs[2]+", "+boroughs[3]+", or "+boroughs[4]+"?"
+
     
     # partial functions needed to pass additional arguments to them in order to avoid reading csv each time
-    partial_track = partial(track, reply_keyboard_borough=reply_keyboard_borough)
-    partial_station = partial(station, df_trips=df_trips, df_stops=df_stops, df_stop_times=df_stop_times, df_shapes=df_shapes, trainsToShow=trainsToShow)
-    partial_error_borough = partial(error_borough, reply_keyboard_borough=reply_keyboard_borough)
+    partial_track = partial(track, reply_keyboard_borough=reply_keyboard_borough, input_field_placeholder=input_field_placeholder)
+    partial_borough = partial(borough, dictStations=dictStations)
+    partial_station = partial(station, df_trips=df_trips, df_stops=df_stops, df_stop_times=df_stop_times, df_shapes=df_shapes, trainsToShow=trainsToShow, reply_keyboard_borough=reply_keyboard_borough, input_field_placeholder=input_field_placeholder)
+    partial_error_borough = partial(error_borough, reply_keyboard_borough=reply_keyboard_borough, input_field_placeholder=input_field_placeholder)
+    partial_error_station = partial(error_station, dictStations=dictStations)
     partial_ask_route_info = partial(ask_route_info, df_trains=df_trains)
 
     """Run the bot."""
@@ -335,15 +376,48 @@ def main() -> None:
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(BOT_TOKEN).concurrent_updates(True).build()
 
+    # application.bot.set_my_commands(commands={
+    #     "commands": [
+    #         {
+    #         "command": "start",
+    #         "description": "Start using bot"
+    #         },
+    #         {
+    #         "command": "help",
+    #         "description": "Display help"
+    #         },
+    #         {
+    #         "command": "menu",
+    #         "description": "Display menu"
+    #         }
+    #         ]
+    #     }
+    # )
+
+
     # Add conversation handler with the states BOROUGH, STATION, ASK_ROUTE_INFO ,and GIVE_ROUTE_INFO
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("track", partial_track),CommandHandler("route_info", partial_ask_route_info)],
+        entry_points=[
+            CommandHandler("start", start),
+            CommandHandler("track", partial_track),
+            CommandHandler("route_info", partial_ask_route_info),
+            CommandHandler("report_bug", get_user_bug_report)
+                      ],
         states={ 
+            INITIAL_STATE: [
+                CommandHandler("track", partial_track),
+                CommandHandler("start", start),
+                CommandHandler("route_info", partial_ask_route_info),
+                CommandHandler("report_bug", get_user_bug_report),
+                CommandHandler("help", help),
+                CommandHandler("stop", stop),
+            ],
             BOROUGH: [
-                MessageHandler(filters.Regex(re.compile(r'\b(?:%s)\b' % '|'.join(re.escape(x) for x in [j for i in reply_keyboard_borough for j in i]))), borough, block=False),
+                MessageHandler(filters.Regex(re.compile(r'\b(?:%s)\b' % '|'.join(re.escape(x) for x in [j for i in reply_keyboard_borough for j in i]))), partial_borough, block=False),
                 CommandHandler("start", start),
                 CommandHandler("track", partial_track),
                 CommandHandler("route_info", partial_ask_route_info),
+                CommandHandler("report_bug", get_user_bug_report),
                 CommandHandler("help", help),
                 CommandHandler("stop", stop),
                 MessageHandler(~filters.COMMAND, partial_error_borough, block=False),
@@ -353,25 +427,29 @@ def main() -> None:
                 CommandHandler("start", start),
                 CommandHandler("track", partial_track),
                 CommandHandler("route_info", partial_ask_route_info),
+                CommandHandler("report_bug", get_user_bug_report),
                 CommandHandler("help", help),
                 CommandHandler("stop", stop),
-                MessageHandler(~filters.COMMAND, error_station, block=False),
-            ],
-            INITIAL_STATE: [
-                CommandHandler("track", partial_track),
-                CommandHandler("start", start),
-                CommandHandler("route_info", partial_ask_route_info),
-                CommandHandler("help", help),
-                CommandHandler("stop", stop),
+                MessageHandler(~filters.COMMAND, partial_error_station, block=False),
             ],
             GIVE_ROUTE_INFO: [
                 MessageHandler(filters.Regex(re.compile(r'\b(?:%s)\b' % '|'.join(x for x in df_trains['route_id'].values.ravel()))), give_route_info, block=False),
                 CommandHandler("start", start),
                 CommandHandler("track", partial_track),
                 CommandHandler("route_info", partial_ask_route_info),
+                CommandHandler("report_bug", get_user_bug_report),
                 CommandHandler("help", help),
                 CommandHandler("stop", stop),
                 MessageHandler(~filters.COMMAND, error_route_info, block=False),
+            ],
+            FORWARD_USER_BUG_REPORT: [
+                MessageHandler(~filters.COMMAND, forward_user_bug_report, block=False),
+                CommandHandler("start", start),
+                CommandHandler("track", partial_track),
+                CommandHandler("route_info", partial_ask_route_info),
+                CommandHandler("report_bug", get_user_bug_report),
+                CommandHandler("help", help),
+                CommandHandler("stop", stop),
             ],
         },
         fallbacks=[CommandHandler("track", partial_track), CommandHandler("stop", stop)],
@@ -384,6 +462,9 @@ def main() -> None:
     # Add route_info handler 
     application.add_handler(CommandHandler("route_info", partial_ask_route_info))
 
+    # Add get_user_bug_report handler 
+    application.add_handler(CommandHandler("report_bug", get_user_bug_report))
+
     # Add help handler 
     application.add_handler(CommandHandler("help", help))
 
@@ -391,7 +472,8 @@ def main() -> None:
     application.add_handler(CommandHandler("stop", stop))
 
 
-    # Heroku implementation
+
+    # Heroku webhook implementation
     PRODUCTION = True
     if PRODUCTION:
         PORT = int(os.environ.get('PORT', 5000))
@@ -407,6 +489,9 @@ def main() -> None:
         application.run_polling(timeout=30)
 
 
+
+
+
 from threading import Thread
 import gtfs_download as gtfs_download
 
@@ -415,6 +500,9 @@ def background_task(dir,filename):
     while True:
         gtfs_download.gtfs_download(dir,filename,True)
             
+
+
+
 
 if __name__ == "__main__":
     

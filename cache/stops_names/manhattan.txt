@@ -1,4 +1,4 @@
-1 Av
+	1 Av
 103 St
 103 St-Corona Plaza
 104 St
@@ -54,8 +54,8 @@
 33 St
 33 St-Rawson St
 34 St-Herald Sq
-34 St-Hudson Yds
-34 St-Penn Stations
+34 St-Hudson Yards
+34 St-Penn Station
 36 St
 40 St-Lowery St
 42 St-Bryant Pk

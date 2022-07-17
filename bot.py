@@ -272,7 +272,7 @@ async def donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Displays info on donate."""
     await update.message.reply_text(
         "If you find this bot useful, please chip in\! Your support will help us keep this bot accessible to everyone \U0001F680\n\n"+
-        "Thank you!\n\n"+
+        "Thank you\!\n\n"+
         "[PayPal donation link](https://www.paypal.com/donate/?business=53MCWVS8WMAM4&no_recurring=0&currency_code=USD)",
         parse_mode='MarkdownV2',
         disable_web_page_preview=True,

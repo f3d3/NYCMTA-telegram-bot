@@ -268,6 +268,20 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return INITIAL_STATE
 
 
+async def donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Displays info on donate."""
+    await update.message.reply_text(
+        "If you find this bot useful, please chip in\! Your support will help us keep this bot accessible to everyone \U0001F680\n\n"+
+        "Thank you!\n\n"+
+        "[PayPal donation link](https://www.paypal.com/donate/?business=53MCWVS8WMAM4&no_recurring=0&currency_code=USD)",
+        parse_mode='MarkdownV2',
+        disable_web_page_preview=True,
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+    return INITIAL_STATE
+
+
 async def error_borough(update: Update, context: ContextTypes.DEFAULT_TYPE, reply_keyboard_borough,input_field_placeholder) -> int:
 
     # Convert list of lists into a flat list
@@ -410,6 +424,7 @@ def main() -> None:
                 CommandHandler("route_info", partial_ask_route_info),
                 CommandHandler("report_bug", get_user_bug_report),
                 CommandHandler("help", help),
+                CommandHandler("donate", donate),
                 CommandHandler("stop", stop),
             ],
             BOROUGH: [
@@ -419,6 +434,7 @@ def main() -> None:
                 CommandHandler("route_info", partial_ask_route_info),
                 CommandHandler("report_bug", get_user_bug_report),
                 CommandHandler("help", help),
+                CommandHandler("donate", donate),
                 CommandHandler("stop", stop),
                 MessageHandler(~filters.COMMAND, partial_error_borough, block=False),
             ],
@@ -429,6 +445,7 @@ def main() -> None:
                 CommandHandler("route_info", partial_ask_route_info),
                 CommandHandler("report_bug", get_user_bug_report),
                 CommandHandler("help", help),
+                CommandHandler("donate", donate),
                 CommandHandler("stop", stop),
                 MessageHandler(~filters.COMMAND, partial_error_station, block=False),
             ],
@@ -439,6 +456,7 @@ def main() -> None:
                 CommandHandler("route_info", partial_ask_route_info),
                 CommandHandler("report_bug", get_user_bug_report),
                 CommandHandler("help", help),
+                CommandHandler("donate", donate),
                 CommandHandler("stop", stop),
                 MessageHandler(~filters.COMMAND, error_route_info, block=False),
             ],
@@ -449,6 +467,7 @@ def main() -> None:
                 CommandHandler("route_info", partial_ask_route_info),
                 CommandHandler("report_bug", get_user_bug_report),
                 CommandHandler("help", help),
+                CommandHandler("donate", donate),
                 CommandHandler("stop", stop),
             ],
         },
@@ -467,6 +486,9 @@ def main() -> None:
 
     # Add help handler 
     application.add_handler(CommandHandler("help", help))
+
+    # Add donation handler 
+    application.add_handler(CommandHandler("donate", donate))
 
     # Add stop handler 
     application.add_handler(CommandHandler("stop", stop))

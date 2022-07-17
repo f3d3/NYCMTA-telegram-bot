@@ -89,6 +89,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "Use /track to start tracking New York City's subway arrival times \U0001F687\U0001F5FD\n\n"+
             "Use /route_info to get information on train operations \U00002139\n\n"+
             "Use /report_bug to report something broken within the bot \U0000274C\n\n"+
+            "Use /donate to contribute to the bot expenses \U0001F680\n\n"+
             "Use /stop to stop this bot \U0000270B",
         reply_markup=ReplyKeyboardRemove()
     ),

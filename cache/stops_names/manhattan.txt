@@ -1,4 +1,4 @@
-	1 Av
+1 Av
 103 St
 103 St-Corona Plaza
 104 St
@@ -24,8 +24,6 @@
 168 St-Washington Hts
 169 St
 170 St
-174 St
-174-175 Sts
 175 St
 176 St
 18 St

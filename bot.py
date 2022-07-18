@@ -30,6 +30,7 @@ import operator
 
 import create_cache as cc
 import findArrivalTime as fat
+import findAlerts as fa
 
 from datetime import date, datetime
 
@@ -39,7 +40,7 @@ import os
 
 import logging
 
-from telegram import Bot, __version__ as TG_VER
+from telegram import Bot, ForceReply, __version__ as TG_VER
 
 try:
     from telegram import __version_info__
@@ -76,7 +77,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # States
-BOROUGH, STATION, INITIAL_STATE, GIVE_ROUTE_INFO, FORWARD_USER_BUG_REPORT = range(5)
+BOROUGH, STATION, INITIAL_STATE, GIVE_ALERT_INFO, GIVE_ROUTE_INFO, FORWARD_USER_BUG_REPORT = range(6)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -87,6 +88,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         greeting + f", {user.first_name}!\n\n" +
             "Use /track to start tracking New York City's subway arrival times \U0001F687\U0001F5FD\n\n"+
+            "Use /alerts to get real time alert information \U000026A0\n\n"+
             "Use /route_info to get information on train operations \U00002139\n\n"+
             "Use /report_bug to report something broken within the bot \U0000274C\n\n"+
             "Use /donate to contribute to the bot expenses \U0001F680\n\n"+
@@ -166,19 +168,22 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, 
 
     trains, destinations, waiting_times, directions = await fat.findArrivalTime_async(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation)
 
-    # trains, destinations, waiting_times, directions = fat.findArrivalTime_async(update, context)
+    # If the considered station is served by some train
+    if (trains is not None) and (destinations is not None) and (waiting_times is not None) and (directions is not None):
 
-    emoji_indication = [('\U0001F53C' if directions[i] == 'N' else ('\U0001F53D' if directions[i] == 'S' else directions[i])) for i in range(0,len(directions))]
+        emoji_indication = [('\U0001F53C' if directions[i] == 'N' else ('\U0001F53D' if directions[i] == 'S' else directions[i])) for i in range(0,len(directions))]
 
+        outStr = ""
+        for i in range(0,len(trains)):
+            outStr = outStr + emoji_indication[i] + " Train " + trains[i] + " (" + destinations[i] + ") - " + str(waiting_times[i]) + " min\n"
 
-    outStr = ""
-    for i in range(0,len(trains)):
-        outStr = outStr + emoji_indication[i] + " Train " + trains[i] + " (" + destinations[i] + ") - " + str(waiting_times[i]) + " min\n"
-
-
-    await update.message.reply_text(
-        outStr,
-        reply_markup=ReplyKeyboardRemove(),
+        await update.message.reply_text(
+            outStr,
+            reply_markup=ReplyKeyboardRemove(),
+        )
+    else:
+        await update.message.reply_text(
+        "This station is not currently served by any train. Use /train_alert to check the train status.",
     )
 
     await update.message.reply_text(
@@ -189,6 +194,58 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, 
     )
 
     return BOROUGH
+
+
+async def ask_alerts(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trains) -> int:
+    
+    """Prints MTA's alert of selected route."""
+
+    context.user_data["trains"] = df_trains
+    routes = df_trains['route_id'].values
+
+    routes = ["42nd Street Shuttle (S)" if r=='GS' else "Franklin Avenue Shuttle (S)" if r=='FS' else "Rockaway Park Shuttle (S)" if r=='H' else r for r in routes]
+
+    await update.message.reply_text(
+        "Which train are you interested in?",
+        reply_markup=ReplyKeyboardMarkup(
+            [[button] for button in routes], one_time_keyboard=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
+        ),
+    )
+
+    return GIVE_ALERT_INFO
+
+
+async def give_alert_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+
+    """Prints MTA's alert of selected route."""
+    user = update.message.from_user
+
+    if update.message.text=="42nd Street Shuttle (S)":
+        selected_train='GS'
+    elif update.message.text=="Franklin Avenue Shuttle (S)":
+        selected_train='FS'
+    elif update.message.text=="Rockaway Park Shuttle (S)":
+        selected_train='H'
+    else:
+        selected_train=update.message.text
+
+    logger.info("Train of %s: %s", user.first_name, selected_train)
+
+    alert = await fa.findAlerts_async(update, context, selected_train)
+    
+    if len(alert)==0:
+        await update.message.reply_text("No alerts provided for " + selected_train +' trains.',
+              reply_markup=ReplyKeyboardRemove())
+    else:
+        for i in range(len(alert)):
+            alert_msg = ''
+            for j in range(len(alert[i])):
+                alert_msg = alert_msg + alert[i][j]+'\n\n'
+            await update.message.reply_text(
+                  alert_msg,
+                  reply_markup=ReplyKeyboardRemove())
+
+    return ConversationHandler.END
 
 
 async def ask_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trains) -> int:
@@ -216,14 +273,24 @@ async def give_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     """Prints MTA's information of selected route."""
     user = update.message.from_user
-    selected_train = update.message.text
+
+    if update.message.text=="42nd Street Shuttle (S)":
+        selected_train='GS'
+    elif update.message.text=="Franklin Avenue Shuttle (S)":
+        selected_train='FS'
+    elif update.message.text=="Rockaway Park Shuttle (S)":
+        selected_train='H'
+    else:
+        selected_train=update.message.text
+
     logger.info("Train of %s: %s", user.first_name, selected_train)
 
     await update.message.reply_text(
-        df_trains[df_trains['route_id'].str.contains(selected_train)]['route_desc'].values[0]
+        df_trains[df_trains['route_id'].str.contains(selected_train)]['route_desc'].values[0],
+        reply_markup=ReplyKeyboardRemove()
     )
 
-    return INITIAL_STATE
+    return ConversationHandler.END
 
 
 async def get_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -231,6 +298,7 @@ async def get_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Allow users to report bug with the bot"""
     await update.message.reply_text(
         "This command is intended for bug reporting only. Send your message below with as many details as possible.",
+        reply_markup=ReplyKeyboardRemove(remove_keyboard=True),
     )
 
     return FORWARD_USER_BUG_REPORT
@@ -243,6 +311,7 @@ async def forward_user_bug_report(update: Update, context: ContextTypes.DEFAULT_
 
     await update.message.reply_text(
         "Thank you for reporting a bug. We are doing our best to fix them as soon as possible \U0001F64F",
+        reply_markup=ReplyKeyboardRemove()
     )
 
     return ConversationHandler.END
@@ -253,7 +322,8 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.message.from_user
     logger.info("User %s stopped the conversation.", user.first_name)
     await update.message.reply_text(
-        "Bye! \U0001F44B I hope we can talk again some day.", reply_markup=ReplyKeyboardRemove()
+        "Bye! \U0001F44B I hope we can talk again some day.",
+        reply_markup=ReplyKeyboardRemove()
     )
 
     return ConversationHandler.END
@@ -266,7 +336,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=ReplyKeyboardRemove()
     )
 
-    return INITIAL_STATE
+    return ConversationHandler.END
 
 
 async def donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -280,13 +350,10 @@ async def donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=ReplyKeyboardRemove()
     )
 
-    return INITIAL_STATE
+    return ConversationHandler.END
 
 
 async def error_borough(update: Update, context: ContextTypes.DEFAULT_TYPE, reply_keyboard_borough,input_field_placeholder) -> int:
-
-    # Convert list of lists into a flat list
-    boroughs = functools.reduce(operator.iconcat, reply_keyboard_borough, [])
 
     await update.message.reply_text(
         "Do not type the borough name. Select a borough from the list below.",
@@ -308,6 +375,20 @@ async def error_station(update: Update, context: ContextTypes.DEFAULT_TYPE, dict
             ),
     )
     return STATION
+
+
+async def error_alert_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+
+    df_trains = context.user_data["trains"]
+    routes = df_trains['route_id'].values
+
+    await update.message.reply_text(
+        "Do not type the train name. Select a train from the list below.",
+        reply_markup=ReplyKeyboardMarkup(
+                [[button] for button in routes], one_time_keyboard=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
+            ),
+    )
+    return GIVE_ALERT_INFO
 
 
 async def error_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -374,13 +455,13 @@ def main() -> None:
     # Make input field placeholder for borough choice
     input_field_placeholder = boroughs[0]+", "+boroughs[1]+", "+boroughs[2]+", "+boroughs[3]+", or "+boroughs[4]+"?"
 
-    
     # partial functions needed to pass additional arguments to them in order to avoid reading csv each time
     partial_track = partial(track, reply_keyboard_borough=reply_keyboard_borough, input_field_placeholder=input_field_placeholder)
     partial_borough = partial(borough, dictStations=dictStations)
     partial_station = partial(station, df_trips=df_trips, df_stops=df_stops, df_stop_times=df_stop_times, df_shapes=df_shapes, trainsToShow=trainsToShow, reply_keyboard_borough=reply_keyboard_borough, input_field_placeholder=input_field_placeholder)
     partial_error_borough = partial(error_borough, reply_keyboard_borough=reply_keyboard_borough, input_field_placeholder=input_field_placeholder)
     partial_error_station = partial(error_station, dictStations=dictStations)
+    partial_ask_alerts = partial(ask_alerts, df_trains=df_trains)
     partial_ask_route_info = partial(ask_route_info, df_trains=df_trains)
 
     """Run the bot."""
@@ -415,13 +496,15 @@ def main() -> None:
         entry_points=[
             CommandHandler("start", start),
             CommandHandler("track", partial_track),
+            CommandHandler("alerts", partial_ask_alerts),
             CommandHandler("route_info", partial_ask_route_info),
             CommandHandler("report_bug", get_user_bug_report)
                       ],
         states={ 
             INITIAL_STATE: [
-                CommandHandler("track", partial_track),
                 CommandHandler("start", start),
+                CommandHandler("track", partial_track),
+                CommandHandler("alerts", partial_ask_alerts),
                 CommandHandler("route_info", partial_ask_route_info),
                 CommandHandler("report_bug", get_user_bug_report),
                 CommandHandler("help", help),
@@ -429,9 +512,10 @@ def main() -> None:
                 CommandHandler("stop", stop),
             ],
             BOROUGH: [
-                MessageHandler(filters.Regex(re.compile(r'\b(?:%s)\b' % '|'.join(re.escape(x) for x in [j for i in reply_keyboard_borough for j in i]))), partial_borough, block=False),
+                MessageHandler(filters.Regex(re.compile(r'|'.join(x for x in [j for i in reply_keyboard_borough for j in i]))), partial_borough, block=False),
                 CommandHandler("start", start),
                 CommandHandler("track", partial_track),
+                CommandHandler("alerts", partial_ask_alerts),
                 CommandHandler("route_info", partial_ask_route_info),
                 CommandHandler("report_bug", get_user_bug_report),
                 CommandHandler("help", help),
@@ -440,9 +524,10 @@ def main() -> None:
                 MessageHandler(~filters.COMMAND, partial_error_borough, block=False),
             ],
             STATION: [
-                MessageHandler(filters.Regex(re.compile(r'\b(?:%s)\b' % '|'.join(re.escape(x) for x in sortedStations))), partial_station, block=False),
+                MessageHandler(filters.Regex(re.compile(r'|'.join(x for x in sortedStations))), partial_station, block=False),
                 CommandHandler("start", start),
                 CommandHandler("track", partial_track),
+                CommandHandler("alerts", partial_ask_alerts),
                 CommandHandler("route_info", partial_ask_route_info),
                 CommandHandler("report_bug", get_user_bug_report),
                 CommandHandler("help", help),
@@ -450,10 +535,23 @@ def main() -> None:
                 CommandHandler("stop", stop),
                 MessageHandler(~filters.COMMAND, partial_error_station, block=False),
             ],
-            GIVE_ROUTE_INFO: [
-                MessageHandler(filters.Regex(re.compile(r'\b(?:%s)\b' % '|'.join(x for x in df_trains['route_id'].values.ravel()))), give_route_info, block=False),
+            GIVE_ALERT_INFO: [
+                MessageHandler(filters.Regex(re.compile(r'|'.join(x for x in ["42nd Street Shuttle (S)" if r=='GS' else "Franklin Avenue Shuttle (S)" if r=='FS' else "Rockaway Park Shuttle (S)" if r=='H' else r for r in df_trains['route_id'].array]))), give_alert_info, block=False),
                 CommandHandler("start", start),
                 CommandHandler("track", partial_track),
+                CommandHandler("alerts", partial_ask_alerts),
+                CommandHandler("route_info", partial_ask_route_info),
+                CommandHandler("report_bug", get_user_bug_report),
+                CommandHandler("help", help),
+                CommandHandler("donate", donate),
+                CommandHandler("stop", stop),
+                MessageHandler(~filters.COMMAND, error_alert_info, block=False),
+            ],
+            GIVE_ROUTE_INFO: [
+                MessageHandler(filters.Regex(re.compile(r'|'.join(x for x in ["42nd Street Shuttle (S)" if r=='GS' else "Franklin Avenue Shuttle (S)" if r=='FS' else "Rockaway Park Shuttle (S)" if r=='H' else r for r in df_trains['route_id'].array]))), give_route_info, block=False),
+                CommandHandler("start", start),
+                CommandHandler("track", partial_track),
+                CommandHandler("alerts", partial_ask_alerts),
                 CommandHandler("route_info", partial_ask_route_info),
                 CommandHandler("report_bug", get_user_bug_report),
                 CommandHandler("help", help),
@@ -465,6 +563,7 @@ def main() -> None:
                 MessageHandler(~filters.COMMAND, forward_user_bug_report, block=False),
                 CommandHandler("start", start),
                 CommandHandler("track", partial_track),
+                CommandHandler("alerts", partial_ask_alerts),
                 CommandHandler("route_info", partial_ask_route_info),
                 CommandHandler("report_bug", get_user_bug_report),
                 CommandHandler("help", help),
@@ -478,6 +577,9 @@ def main() -> None:
 
     # Add start handler 
     application.add_handler(CommandHandler("start", start))
+
+    # Add route_info handler 
+    application.add_handler(CommandHandler("alerts", partial_ask_alerts))
 
     # Add route_info handler 
     application.add_handler(CommandHandler("route_info", partial_ask_route_info))

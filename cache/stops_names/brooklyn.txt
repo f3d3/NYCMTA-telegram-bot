@@ -35,7 +35,6 @@ Church Av
 Clark St
 Classon Av
 Cleveland St
-Clifton
 Clinton-Washington Avs
 Coney Island-Stillwell Av
 Cortelyou Rd
@@ -66,7 +65,6 @@ High St
 Hoyt-Schermerhorn Sts
 Hoyt St
 Jay St-MetroTech
-Jefferson Av
 Jefferson St
 Junius St
 Kings Hwy
@@ -89,7 +87,6 @@ Nassau Av
 Neck Rd
 Neptune Av
 Nevins St
-New Dorp
 New Lots Av
 New Utrecht Av
 Newkirk Av

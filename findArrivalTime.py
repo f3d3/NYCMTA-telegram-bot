@@ -97,7 +97,7 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
         try:
             response = requests.get(i, headers=headers, timeout=30)
         except:
-            return 'fail'
+            return 'Failed to retreive train data from MTA'
 
         # Parse the protocol buffer that is returned
         feed = gtfs_realtime_pb2.FeedMessage()
@@ -105,7 +105,7 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
         try:
             feed.ParseFromString(response.content)
         except:
-            return 'fail'
+            return 'Failed while parsing train data'
             
         # test = protobuf_to_dict(feed)
         
@@ -130,6 +130,11 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
 
     # If there are less trains than trainsToShow, remove all unused rows
     df = df[df['Trip_ID'].notna()]
+
+    # If df is empty, no train is currently serving the considered station (there might be an alert about it due to maintenance, etc...)
+    # and return to the calling function
+    if len(df.index)==0:
+        return None, None, None, None
 
     # Remove trains going to the H19 stop (it is a "ghost" station, the real Broad Channel stop_id is H04)
     # ---> Is it correct to remove them though?

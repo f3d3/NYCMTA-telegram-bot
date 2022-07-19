@@ -405,6 +405,19 @@ async def error_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return GIVE_ROUTE_INFO
 
 
+
+async def post_init(application: Application) -> None:
+    await application.bot.set_my_commands([('start','Start the bot'),
+                                           ('track','Track real time subway arrival times'),
+                                           ('alerts','Retrieve real time service alerts'),
+                                           ('route_info','Get information on train operations'),
+                                           ('report_bug','Send a message to report a bug'),
+                                           ('help','Get info on bot functionalities'),
+                                           ('donate','Contribute to the bot expenses'),
+                                           ('stop','Stop the bot')
+                                          ])
+
+
 def main() -> None:
 
     # Split the large txt files into smaller ones to fasten later processing
@@ -470,7 +483,7 @@ def main() -> None:
     BOT_TOKEN = "5321607170:AAGGp0yky4-A45WTylsod8KvLxBGo0uW5gU"
 
     # Create the Application and pass it your bot's token.
-    application = Application.builder().token(BOT_TOKEN).concurrent_updates(True).build()
+    application = Application.builder().token(BOT_TOKEN).post_init(post_init).concurrent_updates(True).build()
 
     # application.bot.set_my_commands(commands={
     #     "commands": [

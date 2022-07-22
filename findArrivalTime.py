@@ -1,11 +1,11 @@
 import pandas as pd
 import numpy as np
+import os
 import time
 import math
 import requests
-import asyncio
 from datetime import date,datetime,timedelta
-from functools import *
+from functools import wraps
 
 import google.transit.gtfs_realtime_pb2 as gtfs_realtime_pb2
 
@@ -32,18 +32,22 @@ def send_action(action):
     return decorator
 
 
+# import asyncio
+# @send_action(ChatAction.TYPING)
+# async def findArrivalTime_asynced(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation):
+#     # loop = asyncio.get_event_loop()
+#     # return await loop.run_in_executor(
+#     #     None, lambda: findArrivalTime(update, context, trips, stops, stop_times, trainsToShow))
+#     loop = asyncio.get_event_loop()
+#     return await loop.run_in_executor(None, findArrivalTime, update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation)
+
+
 @send_action(ChatAction.TYPING)
-async def findArrivalTime_async(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation):
-    # loop = asyncio.get_event_loop()
-    # return await loop.run_in_executor(
-    #     None, lambda: findArrivalTime(update, context, trips, stops, stop_times, trainsToShow))
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, findArrivalTime, update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation)
-
-
-def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation):
+async def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation):
     
-    MTA_API_key = "***REMOVED***"
+    FLAG_DEBUG = False
+
+    MTA_API_key = os.environ.get("MTA_API_key")
     
     subwayDict =	{
         "1-2-3-4-5-6-7-GS": "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs",       # 1,2,3,4,5,6,7
@@ -53,7 +57,7 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
         "N-Q-R-W"         : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-nqrw",  # N,Q,R,W
         "J-Z"             : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-jz",    # J,Z
         "L"               : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-l",     # L
-        "SI"             : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-si"     # SIR (Staten Island Railway)
+        "SI"              : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-si"     # SIR (Staten Island Railway)
     }
 
     # Find the selected station's stop_id
@@ -64,8 +68,8 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
     df_stops_coord = df_stops_coord.drop_duplicates(subset=['stop_lat','stop_lon'])
 
     # Convert string coordinates to float coordinates
-    df_stops_coord.stop_lat = df_stops_coord.stop_lat.astype(float); df_stops_coord.stop_lon = df_stops_coord.stop_lon.astype(float)
-    df_shapes.shape_pt_lat = df_shapes.shape_pt_lat.astype(float); df_shapes.shape_pt_lon = df_shapes.shape_pt_lon.astype(float)
+    df_stops_coord.stop_lat = df_stops_coord.stop_lat.astype(float);  df_stops_coord.stop_lon = df_stops_coord.stop_lon.astype(float)
+    df_shapes.shape_pt_lat = df_shapes.shape_pt_lat.astype(float);  df_shapes.shape_pt_lon = df_shapes.shape_pt_lon.astype(float)
     
     # Since sometimes station coordinates differ between stops.txt and shapes.txt, don't do an inner join between the two but find closest station by Euclidean distance
     distances = [(((df_shapes['shape_pt_lat'].sub(df_stops_coord.iloc[i,0], axis=0))**2+(df_shapes['shape_pt_lon'].sub(df_stops_coord.iloc[i,1], axis=0))**2)**0.5).to_numpy() for i in range(len(df_stops_coord.index))]
@@ -137,7 +141,7 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
         return None, None, None, None
 
     # Remove trains going to the H19 stop (it is a "ghost" station, the real Broad Channel stop_id is H04)
-    # ---> Is it correct to remove them though?
+    # ---> Is it correct to remove them though???
     df = df[df['Station'].str.contains('H19', regex=False) == False]    
     df.reset_index(drop=True, inplace=True)
 
@@ -147,12 +151,13 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
 
         # Filter for trips containing the considered trip_id
         input_trip_id = df.loc[i,'Trip_ID']
+
         df_trips_filtered = df_trips[df_trips['trip_id'].str.contains(input_trip_id, regex=False)]
 
         # Check if there is any info on the considered trip
         if len(df_trips_filtered.index)>0: # if yes, retrieve informations on destination and direction from the filtered dataframe
             dest = df_trips_filtered['trip_headsign'].values[0]
-            t_id = (df_trips_filtered['trip_id'].values[0]).split("..")[-1]
+            t_id = (df_trips_filtered['trip_id'].values[0]).split(".")[-1]
             dir = t_id[0]
         else: # otherwise, find trip that has closest scheduled departure with respect to the considered trip and get its destination and direction
             input_station_id = df.loc[i,'Station']
@@ -167,51 +172,74 @@ def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips
             # dest, dir = fd.findDestination_async(df.loc[i,'Station'], df_trips, df_stop_times)
             # dest, dir = fd.findDestination(input_station_id, df_trips, df_stop_times)
 
+            # stop_id_values = df_stop_times['stop_id'].values
+            # mask = np.where(np.isin(stop_id_values, input_station_id))[0]
+            # df_trip_id = df_stop_times.iloc[mask]
+            
             df_trip_id = df_stop_times.loc[(df_stop_times['stop_id'] == input_station_id),['trip_id','arrival_time']]
 
-            # Fix hour values greater than 24 (to correct MTA's bugs)
-            twenty_fours = df_trip_id['arrival_time'].str[-8:-6].astype(int) >= 24
-            df_trip_id.loc[twenty_fours, 'arrival_time'] = df_trip_id['arrival_time'].str[:-8] + '00' + df_trip_id['arrival_time'].str[-6:]
-            df_trip_id.loc[:,'arrival_time'] = pd.to_datetime(df_trip_id.loc[:,'arrival_time'], format='%H:%M:%S')
-            df_trip_id.loc[twenty_fours, 'arrival_time'] = df_trip_id.loc[twenty_fours, 'arrival_time'] + timedelta(days=1) # add 1 day to routes with hour that was greater than 24
 
+            ################################ CHECK THIS SECTION BELOW
+
+
+            # Fix hour values greater than 24 (to correct MTA's bugs)
+            # twenty_fours = df_trip_id['arrival_time'].str[-8:-6].astype(int) >= 24
+            # df_trip_id['arrival_time'].str.replace('^(.*?)24', '00',regex=True)
+            # df_trip_id['arrival_time'].str.replace('^(.*?)25', '01',regex=True)
+            # df_trip_id['arrival_time'].str.replace('^(.*?)26', '02',regex=True)
+            # df_trip_id['arrival_time'].str.replace('^(.*?)27', '03',regex=True)
+
+
+            # Fix hour values greater than 24 (to correct MTA's bugs)
+
+            # twenty_fours = df_trip_id['arrival_time'].str[-8:-6].astype(int) >= 24
+            # df_trip_id.loc[twenty_fours, 'arrival_time'] = df_trip_id['arrival_time'].str[:-8] + '00' + df_trip_id['arrival_time'].str[-6:]
+            # df_trip_id.loc[:,'arrival_time'] = pd.to_datetime(df_trip_id.loc[:,'arrival_time'], format='%H:%M:%S')
+            # df_trip_id.loc[twenty_fours, 'arrival_time'] = df_trip_id.loc[twenty_fours, 'arrival_time'] + timedelta(days=1) # add 1 day to routes with hour that was greater than 24
+            wrong_hours = df_trip_id['arrival_time'].str[-8:-6].astype(int) >= 24
+            twenty_four = df_trip_id['arrival_time'].str[-8:-6].astype(int) == 24
+            twenty_five = df_trip_id['arrival_time'].str[-8:-6].astype(int) == 25
+            twenty_six = df_trip_id['arrival_time'].str[-8:-6].astype(int) == 26
+            twenty_seven = df_trip_id['arrival_time'].str[-8:-6].astype(int) == 27
+            df_trip_id.loc[twenty_four, 'arrival_time'] = df_trip_id['arrival_time'].str[:-8] + '00' + df_trip_id['arrival_time'].str[-6:]
+            df_trip_id.loc[twenty_five, 'arrival_time'] = df_trip_id['arrival_time'].str[:-8] + '01' + df_trip_id['arrival_time'].str[-6:]
+            df_trip_id.loc[twenty_six, 'arrival_time'] = df_trip_id['arrival_time'].str[:-8] + '02' + df_trip_id['arrival_time'].str[-6:]
+            df_trip_id.loc[twenty_seven, 'arrival_time'] = df_trip_id['arrival_time'].str[:-8] + '03' + df_trip_id['arrival_time'].str[-6:]
+            df_trip_id.loc[:,'arrival_time'] = pd.to_datetime(df_trip_id.loc[:,'arrival_time'], format='%H:%M:%S')
+            df_trip_id.loc[wrong_hours, 'arrival_time'] = df_trip_id.loc[wrong_hours, 'arrival_time'] + timedelta(days=1) # add 1 day to routes with hour that was greater than 24
+
+            
             # Save current time as a datetime object
             reftime = datetime.utcnow().strftime('%H:%M:%S')
             reftime = datetime.strptime(reftime, "%H:%M:%S")
 
-            df_trip_id = df_trip_id.sort_values(by=['arrival_time'])
-            
-
             # Find trip with closest scheduled departure to current time
+            df_trip_id = df_trip_id.sort_values(by=['arrival_time'])
             # df_trip_id = df_trip_id.loc[[(abs(df_trip_id.iloc[:, 1]-reftime)).idxmin()]]
             df_trip_id = df_trip_id.iloc[[df_trip_id.arrival_time.searchsorted(reftime)]]
 
             # Select train headsign and direction corresponding to selected trip
             temp = df_trips[df_trips['trip_id'].isin(df_trip_id['trip_id'])]
-            finaldestination = temp.iloc[0]['trip_headsign']
-            direction = temp.iloc[0]['trip_id']
-            direction = direction.split(".")[-1] 
-            direction = direction[0] 
-
-            dest = finaldestination
-            dir = direction
+            dest = temp.iloc[0]['trip_headsign']
+            dir = temp.iloc[0]['trip_id']
+            dir = dir.split(".")[-1] 
+            dir = dir[0] 
 
         destinations.append(dest)
         directions.append(dir)
 
-    for i in range(min(trainsToShow,len(df.index))):
         #waiting_times.append(round((int(df['Time'].values[i])-int(time.time()))/60 * 2)/2) # round waiting minutes to nearest 0.5
         waiting_times.append(math.ceil((int(df['Time'].values[i])-int(time.time()))/60)) # round up waiting minutes
  
     # Get train names and substitute shuttle train names with 'S'
-    trains = df['Train'].values
-    trains = ['S' if t=='GS' or t=='FS' or t=='H' else t for t in trains]
+    trains = ['S' if t=='GS' or t=='FS' or t=='H' else t for t in df['Train'].values]
 
     waiting_times, trains, destinations, directions = zip(*sorted(zip(waiting_times, trains, destinations, directions), key=lambda x: x[0])) # sort the variables by waiting_times
 
 
-    print("\n*** Upcoming Trains ***\n")
-    for i in range(min(trainsToShow,len(df.index))):
-        print("Train " + trains[i] + " (" + destinations[i] + ") - " + str(waiting_times[i]) + " min")
+    if FLAG_DEBUG:
+        print("\n*** Upcoming Trains ***\n")
+        for i in range(min(trainsToShow,len(df.index))):
+            print("Train " + trains[i] + " (" + destinations[i] + ") - " + str(waiting_times[i]) + " min")
 
     return trains, destinations, waiting_times, directions

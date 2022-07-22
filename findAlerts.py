@@ -1,16 +1,9 @@
-import pandas as pd
-import numpy as np
+import os
 import time
-import math
 import requests
-import asyncio
-from datetime import date,datetime,timedelta
-from functools import *
+from functools import wraps
 
 import google.transit.gtfs_realtime_pb2 as gtfs_realtime_pb2
-
-import findDestination as fd
-import make_async as ma
 
 from telegram import __version__ as TG_VER
 from telegram import Update
@@ -32,15 +25,17 @@ def send_action(action):
     return decorator
 
 
+# @send_action(ChatAction.TYPING)
+# async def findAlerts_async(update, context, userTrain):
+#     loop = asyncio.get_event_loop()
+#     return await loop.run_in_executor(None, findAlerts, update, context, userTrain)
+
+
+# import asyncio
 @send_action(ChatAction.TYPING)
-async def findAlerts_async(update, context, userTrain):
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, findAlerts, update, context, userTrain)
-
-
-def findAlerts(update: Update, context: ContextTypes.DEFAULT_TYPE, userTrain):    
+async def findAlerts(update: Update, context: ContextTypes.DEFAULT_TYPE, userTrain):    
     
-    MTA_API_key = "ymFcaLS9JBabZieClasw2XzdXnedgfE8QxBTUED0"
+    MTA_API_key = os.environ.get("MTA_API_key")
     
     alertsURL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys%2Fsubway-alerts"
 

@@ -130,7 +130,7 @@ async def track(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the tracking and asks the user about their borough."""
 
     await update.message.reply_text(
-        "Select the borough from the list, or send /stop to stop talking to me.",
+        "Select the borough from the list.",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder=input_field_placeholder
         ),
@@ -192,7 +192,7 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsToSh
     #         reply_markup=ReplyKeyboardRemove(),
     #     )
 
-    
+
 
     # tasks = [asyncio.to_thread(partial_findArrivalTime)]
     # trains, destinations, waiting_times, directions = await asyncio.gather(*tasks)
@@ -418,11 +418,21 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Displays info on how to use the bot."""
+    user = update.message.from_user
+    hour = datetime.now().hour
+    greeting = "Good morning" if 5<=hour<12 else "Good afternoon" if hour<18 else "Good evening"
     await update.message.reply_text(
-        "Use /track to start tracking New York City's subway arrival times \U0001F687\U0001F5FD\n\nUse /stop to stop this bot \U0000270B",
+        greeting + f", {user.mention_markdown_v2()}\! \n\n" +
+            "Use /track to start tracking New York City's subway arrival times \U0001F687\U0001F5FD\n\n"+
+            "Use /alerts to get real time alert information \U000026A0\n\n"+
+            "Use /show\_stops to check train stops \U000024C2\n\n"+
+            "Use /route\_info to get information on train operations \U00002139\n\n"+
+            "Use /report\_bug to report something broken within the bot \U0000274C\n\n"+
+            "Use /donate to contribute to the bot expenses \U0001F680\n\n"+
+            "Use /stop to stop this bot \U0000270B",
+        parse_mode='MarkdownV2',
         reply_markup=ReplyKeyboardRemove()
-    )
-
+    ),
     return ConversationHandler.END
 
 
@@ -433,7 +443,6 @@ async def donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         "Thank you\!\n\n"+
         "[PayPal donation link](https://www.paypal.com/donate/?business=53MCWVS8WMAM4&no_recurring=0&currency_code=USD)",
         parse_mode='MarkdownV2',
-        disable_web_page_preview=True,
         reply_markup=ReplyKeyboardRemove()
     )
 
@@ -554,7 +563,7 @@ def main() -> None:
     BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
     """Instantiate a Defaults object"""
-    defaults = Defaults(tzinfo=pytz.timezone('America/New_York'))
+    defaults = Defaults(disable_web_page_preview=True, tzinfo=pytz.timezone('America/New_York'))
 
 
     my_persistence = PicklePersistence(filepath ='PicklePersistence',store_data=PersistenceInput(bot_data=False, chat_data=True, user_data=True))

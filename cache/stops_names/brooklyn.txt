@@ -44,7 +44,6 @@ Crown Hts-Utica Av
 Cypress Hills
 DeKalb Av
 Delancey St-Essex St
-Delancy St-Essex St
 Ditmas Av
 Dyckman St
 Eastern Pkwy-Brooklyn Museum
@@ -101,7 +100,6 @@ Prospect Av
 Prospect Park
 Ralph Av
 Rockaway Av
-S.B. Coney Island
 Saratoga Av
 Sheepshead Bay
 Shepherd Av

@@ -10,6 +10,8 @@ from telegram.ext import ContextTypes
 
 import createCache
 
+import utils
+
 
 async def storeContext(context: ContextTypes.DEFAULT_TYPE, dir):
         # Store routes file in bot_data to avoid further access to local storage
@@ -47,11 +49,12 @@ async def gtfs_update(*args):
         filename = context.job.data[1]
 
     try:
-        dbfile = open('last_update', 'rb')     
+        dbfile = open('my_persistence', 'rb')     
         db = pickle.load(dbfile)
         last_update = db['last_update']
         dbfile.close()
     except:
+        db = utils.makeNestedDict()
         last_update = datetime(2000, 1, 1, 0, 0, 0)
 
     if (datetime.now()-last_update).total_seconds()<86400 and (os.path.isdir(dir)) and (os.path.isdir("cache/stop_times")) and (os.path.isdir("cache/trips")):
@@ -59,7 +62,7 @@ async def gtfs_update(*args):
     else:
         # await context.bot.send_message(context.job.chat_id, text=f"We are updating the database. Please try again in a couple of minutes.")
 
-        print("*** GTFS file download started***")
+        print("*** GTFS file download started ***")
 
         # create temporary directory if it does not exist
         os.makedirs('temp', exist_ok=True)
@@ -86,14 +89,13 @@ async def gtfs_update(*args):
         await createCache.createCache(dir)
 
         # database
-        last_update = {}
-        last_update['last_update'] = datetime.now() 
+        db['last_update'] = datetime.now() 
 
         # Its important to use binary mode
-        dbfile = open('last_update', 'ab')
+        dbfile = open('my_persistence', 'wb')
         
         # source, destination
-        pickle.dump(last_update, dbfile)                     
+        pickle.dump(db, dbfile)                     
         dbfile.close()
 
     if len(args)==1:

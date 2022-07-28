@@ -4,8 +4,7 @@ import os
 import time
 import math
 import requests
-from datetime import date,datetime,timedelta
-from functools import wraps
+from datetime import datetime,timedelta
 
 import google.transit.gtfs_realtime_pb2 as gtfs_realtime_pb2
 
@@ -19,21 +18,11 @@ from telegram.ext import (
     ContextTypes,
 )
 
-def send_action(action):
-    """Sends `action` while processing func command."""
-
-    def decorator(func):
-        @wraps(func)
-        async def command_func(update, context, *args, **kwargs):
-            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=action)
-            return await func(update, context,  *args, **kwargs)
-        return command_func
-    
-    return decorator
+import utils
 
 
 # import asyncio
-# @send_action(ChatAction.TYPING)
+# @utils.send_action(ChatAction.TYPING)
 # async def findArrivalTime_asynced(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation):
 #     # loop = asyncio.get_event_loop()
 #     # return await loop.run_in_executor(
@@ -42,7 +31,7 @@ def send_action(action):
 #     return await loop.run_in_executor(None, findArrivalTime, update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation)
 
 
-@send_action(ChatAction.TYPING)
+@utils.send_action(ChatAction.TYPING)
 async def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation):
     
     FLAG_DEBUG = False

@@ -1,7 +1,6 @@
 import os
 import time
 import requests
-from functools import wraps
 
 import google.transit.gtfs_realtime_pb2 as gtfs_realtime_pb2
 
@@ -12,27 +11,17 @@ from telegram.ext import (
     ContextTypes,
 )
 
-def send_action(action):
-    """Sends `action` while processing func command."""
-
-    def decorator(func):
-        @wraps(func)
-        async def command_func(update, context, *args, **kwargs):
-            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=action)
-            return await func(update, context,  *args, **kwargs)
-        return command_func
-    
-    return decorator
+import utils
 
 
-# @send_action(ChatAction.TYPING)
+# @utils.send_action(ChatAction.TYPING)
 # async def findAlerts_async(update, context, userTrain):
 #     loop = asyncio.get_event_loop()
 #     return await loop.run_in_executor(None, findAlerts, update, context, userTrain)
 
 
 # import asyncio
-@send_action(ChatAction.TYPING)
+@utils.send_action(ChatAction.TYPING)
 async def findAlerts(update: Update, context: ContextTypes.DEFAULT_TYPE, userTrain):    
     
     MTA_API_key = os.environ.get("MTA_API_key")

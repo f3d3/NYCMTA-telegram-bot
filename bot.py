@@ -15,11 +15,7 @@ bot.
 """
 
 import os
-
 import pandas as pd
-
-
-
 import re
 
 from functools import *
@@ -35,12 +31,15 @@ import gtfs_update
 import findArrivalTime as fat
 import findAlerts as fa
 import findStops as fs
+import utils
 import constants
 
 from datetime import datetime, timedelta
 import pytz
 
 import asyncio
+import pickle
+
 
 import logging
 
@@ -85,14 +84,6 @@ logger = logging.getLogger(__name__)
 BOROUGH, STATION, GIVE_ALERT_INFO, GIVE_ROUTE_INFO, GIVE_SHOW_STOPS, FORWARD_USER_BUG_REPORT = range(6)
 
 
-dictStations = {
-    "Manhattan": pd.read_csv('cache/stops_names/manhattan.txt',header=None).values.ravel(),
-    "Brooklyn": pd.read_csv('cache/stops_names/brooklyn.txt',header=None).values.ravel(),
-    "Queens": pd.read_csv('cache/stops_names/queens.txt',header=None).values.ravel(),
-    "The Bronx": pd.read_csv('cache/stops_names/the_bronx.txt',header=None).values.ravel(),
-    "Staten Island": pd.read_csv('cache/stops_names/staten_island.txt',header=None).values.ravel()
-}
-
 # Keyboard borough buttons
 reply_keyboard_borough = [["Manhattan","Brooklyn","Queens"],["The Bronx","Staten Island"]]
 
@@ -102,12 +93,20 @@ boroughs = functools.reduce(operator.iconcat, reply_keyboard_borough, [])
 # Make input field placeholder for borough choice
 input_field_placeholder = boroughs[0]+", "+boroughs[1]+", "+boroughs[2]+", "+boroughs[3]+", or "+boroughs[4]+"?"
 
+# Dictionary of various borough stations
+dictStations = {
+    "Manhattan": pd.read_csv('cache/stops_names/manhattan.txt',header=None).values.ravel(),
+    "Brooklyn": pd.read_csv('cache/stops_names/brooklyn.txt',header=None).values.ravel(),
+    "Queens": pd.read_csv('cache/stops_names/queens.txt',header=None).values.ravel(),
+    "The Bronx": pd.read_csv('cache/stops_names/the_bronx.txt',header=None).values.ravel(),
+    "Staten Island": pd.read_csv('cache/stops_names/staten_island.txt',header=None).values.ravel()
+}
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    
+    """Starts the bot and welcomes the user."""
     user = update.message.from_user
-    hour = datetime.now().hour
+    hour = datetime.now(pytz.timezone('America/New_York')).hour
     greeting = "Good morning" if 5<=hour<12 else "Good afternoon" if hour<18 else "Good evening"
     await update.message.reply_text(
         greeting + f", {user.mention_markdown_v2()}\! \n\n" +
@@ -124,11 +123,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
-#async def track(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def track(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-
     """Starts the tracking and asks the user about their borough."""
-
     await update.message.reply_text(
         "Select the borough from the list.",
         reply_markup=ReplyKeyboardMarkup(
@@ -143,9 +139,7 @@ async def track(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stores the borough and asks for the station."""
     context.user_data["borough"] = update.message.text
-
     df_stations = dictStations[update.message.text]
-
     user = update.message.from_user
     logger.info("Borough of %s: %s", user.first_name, update.message.text)
     await update.message.reply_text(
@@ -163,6 +157,7 @@ async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # Process the borough and station and find arrival times
 async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsToShow) -> int:
+    """Stores the selected station and find arrival time."""
 
     # await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
     await update.message.reply_text(
@@ -180,9 +175,9 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsToSh
     df_trips = context.bot_data["df_trips"]
 
 
-    """Stores the selected station and find arrival time."""
     userStation = update.message.text
     user = update.message.from_user
+
     logger.info("Station of %s: %s", user.first_name, update.message.text)
 
     # """ Send warning about Broad Channel ---> Broad Channel fixed now by skipping H19 trains?"""
@@ -235,13 +230,10 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsToSh
 
 
 async def ask_alerts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    
     """Prints MTA's alert of selected route."""
 
     df_routes = context.bot_data["df_routes"]
-
     routes = df_routes['route_id'].values
-
     routes = ["42nd Street Shuttle (S)" if r=='GS' else "Franklin Avenue Shuttle (S)" if r=='FS' else "Rockaway Park Shuttle (S)" if r=='H' else r for r in routes]
 
     await update.message.reply_text(
@@ -292,10 +284,8 @@ async def ask_show_stops(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     """Prints stops of selected route."""
 
     df_routes = context.bot_data["df_routes"]
-
     routes = df_routes['route_id'].values
-
-    routes = [x for x in routes if x not in ['5X','6X','7X','FX','W','Z']] # EXPRESS TRAINS NOT IN routes.txt (WHAT TO DO?)
+    routes = [x for x in routes if x not in ['5X','6X','7X','FX','W','Z']] # EXPRESS TRAINS ARE NOT IN routes.txt (WHAT TO DO?)
     routes = ["42nd Street Shuttle (S)" if r=='GS' else "Franklin Avenue Shuttle (S)" if r=='FS' else "Rockaway Park Shuttle (S)" if r=='H' else r for r in routes]
 
     await update.message.reply_text(
@@ -335,13 +325,10 @@ async def give_show_stops(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def ask_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    
     """Prints MTA's information of selected route."""
 
     df_routes = context.bot_data["df_routes"]
-
     routes = df_routes['route_id'].values
-
     routes = ["42nd Street Shuttle (S)" if r=='GS' else "Franklin Avenue Shuttle (S)" if r=='FS' else "Rockaway Park Shuttle (S)" if r=='H' else r for r in routes]
 
     await update.message.reply_text(
@@ -355,10 +342,10 @@ async def ask_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def give_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Prints MTA's information of selected route."""
 
     df_routes = context.bot_data["df_routes"]
 
-    """Prints MTA's information of selected route."""
     user = update.message.from_user
 
     if update.message.text=="42nd Street Shuttle (S)":
@@ -381,7 +368,6 @@ async def give_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def get_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-
     """Allow users to report bug with the bot"""
     await update.message.reply_text(
         "This command is intended for bug reporting only. Send your message below with as many details as possible.",
@@ -391,7 +377,41 @@ async def get_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE
     return FORWARD_USER_BUG_REPORT
 
 
-async def forward_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def forward_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE, max_daily_reports) -> int:
+
+    # try to open pickle file, otherwise create it
+    try:
+        dbfile = open('my_persistence', 'rb')     
+        db = pickle.load(dbfile)
+        dbfile.close()
+    except:
+        db = utils.makeNestedDict()
+    
+    
+    if update.effective_user.id in db:
+        if (datetime.now()-db[update.effective_user.id]['last_report_date']).total_seconds()<86400 and db[update.effective_user.id]['count']>=max_daily_reports:
+            await update.message.reply_text(
+                "Bug reports limit reached. Please, try again tomorrow.",
+                reply_markup=ReplyKeyboardRemove()
+            )
+            return ConversationHandler.END
+        else:
+            if (datetime.now()-db[update.effective_user.id]['last_report_date']).total_seconds()>=86400: # if last bug report was sent more than 24 hours ago
+                db[update.effective_user.id]['last_report_date'] = datetime.now()
+                db[update.effective_user.id]['count'] = 1
+            else:
+                db[update.effective_user.id]['count'] = db[update.effective_user.id]['count'] + 1
+    else:
+        db[update.effective_user.id]['last_report_date'] = datetime.now()
+        db[update.effective_user.id]['count'] = 1
+
+
+    # Its important to use binary mode
+    dbfile = open('my_persistence', 'wb')
+    
+    # source, destination
+    pickle.dump(db, dbfile)                     
+    dbfile.close()
 
     """Forward user bug reports to private channel"""
     await update.message.forward(chat_id='-1001708464995')
@@ -433,6 +453,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         parse_mode='MarkdownV2',
         reply_markup=ReplyKeyboardRemove()
     ),
+
     return ConversationHandler.END
 
 
@@ -537,6 +558,10 @@ def main() -> None:
     # Select how many incoming trains to show in output
     trainsToShow = 5
 
+    # Maximum number od daily bug reports per user (in order to prevent spam messages)
+    max_daily_reports = 3
+
+
     # Perform initial download/update of local files if needed
     loop = asyncio.get_event_loop()
     coroutine = gtfs_update.gtfs_update(dir,filename)
@@ -557,6 +582,7 @@ def main() -> None:
     # partial_error_station = partial(error_station, dictStations=dictStations)
     # partial_ask_alerts = partial(ask_alerts)
     # partial_ask_route_info = partial(ask_route_info)
+    partial_forward_user_bug_report = partial(forward_user_bug_report, max_daily_reports=max_daily_reports)
 
     """Run the bot."""
 
@@ -566,7 +592,9 @@ def main() -> None:
     defaults = Defaults(disable_web_page_preview=True, tzinfo=pytz.timezone('America/New_York'))
 
 
-    my_persistence = PicklePersistence(filepath ='PicklePersistence',store_data=PersistenceInput(bot_data=False, chat_data=True, user_data=True))
+    # Pickle persistence file to make context data survive bot restarts
+    bot_persistence = PicklePersistence(filepath ='PicklePersistence',store_data=PersistenceInput(bot_data=False, chat_data=True, user_data=True)) # don't save bot_data to save storage space
+    
     # Create the Application and pass it your bot's token.
     application = (
         Application.builder()
@@ -574,7 +602,7 @@ def main() -> None:
         .post_init(post_init)
         .concurrent_updates(True)
         .defaults(defaults)
-        .persistence(persistence=my_persistence)
+        .persistence(persistence=bot_persistence)
         .build()
     )
 
@@ -587,7 +615,7 @@ def main() -> None:
     # nyc_time = utc_time.astimezone(eastern) # I would like to specify the NYC time and not the UTC time, but this line needs to checked
     nyc_time = datetime(2000, 1, 1, 4, 0, 0) # date is not important, just write correct time for NYC timezone
 
-    # This job is an hack to store GTFS supplemented .csv files in context.bot_data 
+    # This job is an hack to store GTFS supplemented .csv files in context.bot_data during initial code execution
     job_once = job_queue.run_once(gtfs_update.gtfs_update,when=datetime.now(pytz.timezone('America/New_York'))+timedelta(seconds=5),data=(dir,filename),name='gtfs_first_update') # use data to pass arguments to callback
     
     # This job updates the GTFS supplemented .csv files daily
@@ -606,7 +634,6 @@ def main() -> None:
             CommandHandler("help", help),
             CommandHandler("donate", donate),
             CommandHandler("stop", stop)
-            
                       ],
         states={ 
             BOROUGH: [
@@ -630,7 +657,7 @@ def main() -> None:
                 MessageHandler(~filters.COMMAND, error_route_info, block=False),
             ],
             FORWARD_USER_BUG_REPORT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, forward_user_bug_report, block=False),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, partial_forward_user_bug_report, block=False),
             ],
         },
         fallbacks=[CommandHandler("start", start)],

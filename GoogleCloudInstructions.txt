@@ -1,0 +1,11 @@
+Deploy telegram bot on Google Cloud:
+https://programmingforgood.medium.com/deploy-telegram-bot-on-google-cloud-platform-74f1f531f65e
+
+How to store github Personal access token:
+https://stackoverflow.com/a/68825235/2650761
+
+Run the Telegram Bot with the command below for it not to stop after SSH logout
+nohup python3 main.py &
+
+After logging back in, if you want to kill the process do:
+https://stackoverflow.com/a/49177890/2650761

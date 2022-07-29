@@ -402,7 +402,7 @@ async def forward_user_bug_report(update: Update, context: ContextTypes.DEFAULT_
         db = utils.makeNestedDict()
     
     
-    if update.effective_user.id in db['users']:
+    if update.effective_user.id in db['users'] and 'last_bug_report' in db['users'][update.effective_user.id] and 'total_bug_reports' in db['users'][update.effective_user.id]:
         if (datetime.now()-db['users'][update.effective_user.id]['last_bug_report']).total_seconds()<86400 and db['users'][update.effective_user.id]['total_bug_reports']>=max_daily_reports:
             await update.message.reply_text(
                 "Bug reports limit reached. Please, try again tomorrow.",

@@ -616,7 +616,7 @@ def main() -> None:
     # Select how many incoming trains to show in output
     trainsToShow = 5
 
-    # Maximum number od daily bug reports per user (in order to prevent spam messages)
+    # Maximum number od daily bug reports per user (to prevent spam messages)
     max_daily_reports = 3
 
 
@@ -739,7 +739,7 @@ def main() -> None:
 
 
     # Heroku webhook implementation
-    PRODUCTION = True
+    PRODUCTION = False
     if PRODUCTION:
         PORT = int(os.environ.get('PORT', 5000))
         # add handlers

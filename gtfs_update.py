@@ -51,13 +51,13 @@ async def gtfs_update(*args):
     try:
         dbfile = open('my_persistence', 'rb')     
         db = pickle.load(dbfile)
-        last_update = db['last_update']
+        last_gtfs_update = db['last_gtfs_update']
         dbfile.close()
     except:
         db = utils.makeNestedDict()
-        last_update = datetime(2000, 1, 1, 0, 0, 0)
+        last_gtfs_update = datetime(2000, 1, 1, 0, 0, 0)
 
-    if (datetime.now()-last_update).total_seconds()<86400 and (os.path.isdir(dir)) and (os.path.isdir("cache/stop_times")) and (os.path.isdir("cache/trips")):
+    if (datetime.now()-last_gtfs_update).total_seconds()<86400 and (os.path.isdir(dir)) and (os.path.isdir("cache/stop_times")) and (os.path.isdir("cache/trips")):
         pass
     else:
         # await context.bot.send_message(context.job.chat_id, text=f"We are updating the database. Please try again in a couple of minutes.")
@@ -89,7 +89,7 @@ async def gtfs_update(*args):
         await createCache.createCache(dir)
 
         # database
-        db['last_update'] = datetime.now() 
+        db['last_gtfs_update'] = datetime.now() 
 
         # Its important to use binary mode
         dbfile = open('my_persistence', 'wb')

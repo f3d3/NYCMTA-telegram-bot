@@ -111,6 +111,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         greeting + f", {user.mention_markdown_v2()}\! \n\n" +
             "Use /track to start tracking New York City's subway arrival times \U0001F687\U0001F5FD\n\n"+
             "Use /alerts to get real time alert information \U000026A0\n\n"+
+            "Use /show\_stops to check train stops \U000024C2\n\n"+
             "Use /route\_info to get information on train operations \U00002139\n\n"+
             "Use /report\_bug to report something broken within the bot \U0000274C\n\n"+
             "Use /donate to contribute to the bot expenses \U0001F680\n\n"+
@@ -118,6 +119,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         parse_mode='MarkdownV2',
         reply_markup=ReplyKeyboardRemove()
     ),
+
+    
 
     utils.recordUserInteraction(update, context)
 
@@ -399,7 +402,7 @@ async def forward_user_bug_report(update: Update, context: ContextTypes.DEFAULT_
         db = utils.makeNestedDict()
     
     
-    if update.effective_user.id in db:
+    if update.effective_user.id in db['users']:
         if (datetime.now()-db['users'][update.effective_user.id]['last_bug_report']).total_seconds()<86400 and db['users'][update.effective_user.id]['total_bug_reports']>=max_daily_reports:
             await update.message.reply_text(
                 "Bug reports limit reached. Please, try again tomorrow.",
@@ -452,7 +455,7 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Displays info on how to use the bot."""
     user = update.message.from_user
-    hour = datetime.now().hour
+    hour = datetime.now(pytz.timezone('America/New_York')).hour
     greeting = "Good morning" if 5<=hour<12 else "Good afternoon" if hour<18 else "Good evening"
     await update.message.reply_text(
         greeting + f", {user.mention_markdown_v2()}\! \n\n" +
@@ -596,8 +599,7 @@ async def error_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def post_init(application: Application) -> None:
-    await application.bot.set_my_commands([('start','Start the bot'),
-                                           ('track','Track real time subway arrival times'),
+    await application.bot.set_my_commands([('track','Track real time subway arrival times'),
                                            ('alerts','Retrieve real time service alerts'),
                                            ('show_stops','Check train stops'),
                                            ('route_info','Get information on train operations'),

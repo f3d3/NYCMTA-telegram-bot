@@ -22,7 +22,6 @@ from functools import *
 
 import functools
 import operator
-from findStops import findStops
 
 # from protobuf_to_dict import protobuf_to_dict
 
@@ -60,7 +59,7 @@ if __version_info__ < (20, 0, 0, "alpha", 1):
 
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
-from telegram.constants import ChatAction
+# from telegram.constants import ChatAction
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -120,6 +119,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=ReplyKeyboardRemove()
     ),
 
+    utils.recordUserInteraction(update, context)
+
     return ConversationHandler.END
 
 
@@ -149,6 +150,8 @@ async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         ),
     )
 
+    utils.recordUserInteraction(update, context)
+    
     return STATION
 
 
@@ -243,6 +246,8 @@ async def ask_alerts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         ),
     )
 
+    utils.recordUserInteraction(update, context)
+
     return GIVE_ALERT_INFO
 
 
@@ -295,6 +300,8 @@ async def ask_show_stops(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         ),
     )
 
+    utils.recordUserInteraction(update, context)
+
     return GIVE_SHOW_STOPS
 
 
@@ -337,6 +344,8 @@ async def ask_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             [[button] for button in routes], one_time_keyboard=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
         ),
     )
+
+    utils.recordUserInteraction(update, context)
     
     return GIVE_ROUTE_INFO
 
@@ -374,6 +383,8 @@ async def get_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE
         reply_markup=ReplyKeyboardRemove(remove_keyboard=True),
     )
 
+    utils.recordUserInteraction(update, context)
+
     return FORWARD_USER_BUG_REPORT
 
 
@@ -389,21 +400,21 @@ async def forward_user_bug_report(update: Update, context: ContextTypes.DEFAULT_
     
     
     if update.effective_user.id in db:
-        if (datetime.now()-db[update.effective_user.id]['last_report_date']).total_seconds()<86400 and db[update.effective_user.id]['count']>=max_daily_reports:
+        if (datetime.now()-db['users'][update.effective_user.id]['last_bug_report']).total_seconds()<86400 and db['users'][update.effective_user.id]['total_bug_reports']>=max_daily_reports:
             await update.message.reply_text(
                 "Bug reports limit reached. Please, try again tomorrow.",
                 reply_markup=ReplyKeyboardRemove()
             )
             return ConversationHandler.END
         else:
-            if (datetime.now()-db[update.effective_user.id]['last_report_date']).total_seconds()>=86400: # if last bug report was sent more than 24 hours ago
-                db[update.effective_user.id]['last_report_date'] = datetime.now()
-                db[update.effective_user.id]['count'] = 1
+            if (datetime.now()-db['users'][update.effective_user.id]['last_bug_report']).total_seconds()>=86400: # if last bug report was sent more than 24 hours ago
+                db['users'][update.effective_user.id]['last_bug_report'] = datetime.now()
+                db['users'][update.effective_user.id]['total_bug_reports'] = 1
             else:
-                db[update.effective_user.id]['count'] = db[update.effective_user.id]['count'] + 1
+                db['users'][update.effective_user.id]['total_bug_reports'] += 1
     else:
-        db[update.effective_user.id]['last_report_date'] = datetime.now()
-        db[update.effective_user.id]['count'] = 1
+        db['users'][update.effective_user.id]['last_bug_report'] = datetime.now()
+        db['users'][update.effective_user.id]['total_bug_reports'] = 1
 
 
     # Its important to use binary mode
@@ -433,6 +444,8 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=ReplyKeyboardRemove()
     )
 
+    utils.recordUserInteraction(update, context)
+
     return ConversationHandler.END
 
 
@@ -452,7 +465,9 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             "Use /stop to stop this bot \U0000270B",
         parse_mode='MarkdownV2',
         reply_markup=ReplyKeyboardRemove()
-    ),
+    )
+
+    utils.recordUserInteraction(update, context)
 
     return ConversationHandler.END
 
@@ -467,7 +482,48 @@ async def donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=ReplyKeyboardRemove()
     )
 
+    utils.recordUserInteraction(update, context)
+
     return ConversationHandler.END
+
+
+
+@utils.restricted # only accessible if `user_id` is in `LIST_OF_ADMINS`
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # try to open pickle file, otherwise create it
+    try:
+        dbfile = open('my_persistence', 'rb')     
+        db = pickle.load(dbfile)
+        dbfile.close()
+    except:
+        db = utils.makeNestedDict()
+
+    total_bot_interactions = 0
+    last_bot_usage = datetime.max
+    now = datetime.now()
+    daily_active_users = 0
+    daily_bot_interactions = 0
+    for (key, value) in db['users'].items():
+        total_bot_interactions += value['total_interactions']
+        if value['last_bot_usage'] < last_bot_usage:
+            last_bot_usage = value['last_bot_usage']
+        if (now-value['last_bot_usage']).total_seconds()<86400:
+            daily_active_users += 1
+            daily_bot_interactions += value['daily_interactions']
+    
+    await update.message.reply_text(
+        "*Total users:*\n    " + str(len(db['users'].keys())) + "\n" +
+        "*Total bot interactions:*\n    " + str(total_bot_interactions) + "\n" +
+        "*Daily active users:*\n    " + str(daily_active_users) + "\n" +
+        "*Daily bot interactions:*\n    " + str(daily_bot_interactions) + "\n" +
+        "*Last bot usage:*\n    " + last_bot_usage.strftime("%d/%m/%Y, %H:%M:%S") + "\n" +
+        "*Last GTFS update:*\n    " + db['last_gtfs_update'].strftime("%d/%m/%Y, %H:%M:%S"),
+        parse_mode='MarkdownV2',
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+
+
 
 
 async def error_borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -534,6 +590,8 @@ async def error_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             ),
     )
     return GIVE_ROUTE_INFO
+
+
 
 
 
@@ -633,6 +691,7 @@ def main() -> None:
             CommandHandler("report_bug", get_user_bug_report),
             CommandHandler("help", help),
             CommandHandler("donate", donate),
+            CommandHandler("stats", stats),
             CommandHandler("stop", stop)
                       ],
         states={ 
@@ -675,6 +734,7 @@ def main() -> None:
     application.add_handler(CommandHandler("report_bug", get_user_bug_report))
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("donate", donate))
+    application.add_handler(CommandHandler("stats", stats))
     application.add_handler(CommandHandler("stop", stop))
 
 

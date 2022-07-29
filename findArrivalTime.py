@@ -8,10 +8,6 @@ from datetime import datetime,timedelta
 
 import google.transit.gtfs_realtime_pb2 as gtfs_realtime_pb2
 
-import findDestination as fd
-import make_async as ma
-
-from telegram import __version__ as TG_VER
 from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import (

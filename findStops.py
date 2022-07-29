@@ -1,4 +1,3 @@
-from telegram import __version__ as TG_VER
 from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import (

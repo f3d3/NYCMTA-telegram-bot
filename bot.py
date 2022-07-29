@@ -502,13 +502,13 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db = utils.makeNestedDict()
 
     total_bot_interactions = 0
-    last_bot_usage = datetime.max
+    last_bot_usage = datetime.min
     now = datetime.now()
     daily_active_users = 0
     daily_bot_interactions = 0
     for (key, value) in db['users'].items():
         total_bot_interactions += value['total_interactions']
-        if value['last_bot_usage'] < last_bot_usage:
+        if value['last_bot_usage'] > last_bot_usage:
             last_bot_usage = value['last_bot_usage']
         if (now-value['last_bot_usage']).total_seconds()<86400:
             daily_active_users += 1

@@ -12,9 +12,12 @@ from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import (
     ContextTypes,
+    ConversationHandler,
 )
 
 import utils
+
+import pickle
 
 
 # import asyncio
@@ -28,7 +31,7 @@ import utils
 
 
 @utils.send_action(ChatAction.TYPING)
-async def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation):
+async def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation, favourite):
     
     FLAG_DEBUG = False
 
@@ -47,6 +50,26 @@ async def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df
 
     # Find the selected station's stop_id
     stop_ids = (df_stops.loc[df_stops['stop_name']==userStation]['stop_id']).tolist()
+
+    # If tracking favourite station, keep only trains that go the favorite direction
+    # try to open pickle file, otherwise create it
+    try:
+        dbfile = open('my_persistence', 'rb')     
+        db = pickle.load(dbfile)
+        dbfile.close()
+    except:
+        db = utils.makeNestedDict()
+
+    if favourite and 'favourite_direction' in db['users'][update.effective_user.id]:
+        if db['users'][update.effective_user.id]['favourite_direction']=='N' or db['users'][update.effective_user.id]['favourite_direction']=='S':
+            stop_ids = [val for val in stop_ids if val.endswith(db['users'][update.effective_user.id]['favourite_direction'])]
+        else:
+            pass
+    else:
+        await update.message.reply_text(
+            "You first need to set your favourite direction with /set_favourite.")
+        return ConversationHandler.END
+
 
     # Since train names can't be extracted from stop_ids reliably, get the selected station's coordinates 
     df_stops_coord = df_stops.loc[df_stops['stop_name']==userStation][['stop_lat','stop_lon']]

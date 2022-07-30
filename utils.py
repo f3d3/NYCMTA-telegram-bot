@@ -65,7 +65,6 @@ def recordUserInteraction(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         db['users'][update.effective_user.id]['daily_interactions'] = 1
 
-
     db['users'][update.effective_user.id]['last_bot_usage'] = datetime.now()
 
 

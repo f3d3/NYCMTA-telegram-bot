@@ -58,8 +58,7 @@ if __version_info__ < (20, 0, 0, "alpha", 1):
 
 
 
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
-# from telegram.constants import ChatAction
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -69,7 +68,8 @@ from telegram.ext import (
     filters,
     Defaults,
     PicklePersistence,
-    PersistenceInput
+    PersistenceInput,
+    CallbackQueryHandler
 )
 
 # Enable logging
@@ -80,7 +80,7 @@ logger = logging.getLogger(__name__)
 
 
 # States
-BOROUGH, STATION, GIVE_ALERT_INFO, GIVE_ROUTE_INFO, GIVE_SHOW_STOPS, FORWARD_USER_BUG_REPORT = range(6)
+BOROUGH, STATION, GIVE_ALERT_INFO, GIVE_ROUTE_INFO, GIVE_SHOW_STOPS, SEND_USER_BUG_REPORT, SET_FAVOURITE, SET_FAVOURITE_DIRECTION = range(8)
 
 
 # Keyboard borough buttons
@@ -120,8 +120,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         reply_markup=ReplyKeyboardRemove()
     ),
 
-    
-
     utils.recordUserInteraction(update, context)
 
     return ConversationHandler.END
@@ -129,12 +127,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def track(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the tracking and asks the user about their borough."""
-    await update.message.reply_text(
+    await update.effective_message.reply_text( # effective_message can be used if we are here from both a CommandHandler (in case of /track) and CallbackQueryHandler (in case of /set_favourite)
         "Select the borough from the list.",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder=input_field_placeholder
         ),
     )
+
+     # store wheather we are here from /track or /set_favourite commands
+     # note that this is needed because if we went straight to borough, we would not know from which command we came from,
+     # thus not knowing if we would need to show trains or store user preference 
+    if hasattr(update.message, 'text'):
+        context.user_data["setting_favourites"] = False # here from /track
+    else:
+        context.user_data["setting_favourites"] = True # here from /set_favourite
 
     return BOROUGH
 
@@ -142,11 +148,11 @@ async def track(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # Ask user for station
 async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stores the borough and asks for the station."""
-    context.user_data["borough"] = update.message.text
-    df_stations = dictStations[update.message.text]
-    user = update.message.from_user
-    logger.info("Borough of %s: %s", user.first_name, update.message.text)
-    await update.message.reply_text(
+    context.user_data["borough"] = update.effective_message.text
+    df_stations = dictStations[update.effective_message.text]
+    user = update.effective_message.from_user
+    logger.info("Borough of %s: %s", user.first_name, update.effective_message.text)
+    await update.effective_message.reply_text( # effective_message can be used if we are here from both a CommandHandler (in case of /track) and CallbackQueryHandler (in case of /set_favourite)
         "Select the station from the list",
         reply_markup=ReplyKeyboardMarkup(
             [[button] for button in df_stations], one_time_keyboard=True, input_field_placeholder=df_stations[0]+", "+df_stations[1]+", "+df_stations[2]+", "+df_stations[3]+", "+df_stations[4]+"..."
@@ -155,7 +161,24 @@ async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     utils.recordUserInteraction(update, context)
     
+    if context.user_data["setting_favourites"]: # here from /set_favourite
+        # try to open pickle file, otherwise create it
+        try:
+            dbfile = open('my_persistence', 'rb')     
+            db = pickle.load(dbfile)
+            dbfile.close()
+        except:
+            db = utils.makeNestedDict()
+        # Store favourite borough
+        db['users'][update.effective_user.id]['favourite_borough'] = update.effective_message.text
+        # Its important to use binary mode
+        dbfile = open('my_persistence', 'wb')
+        # source, destination
+        pickle.dump(db, dbfile)                     
+        dbfile.close()
+    
     return STATION
+
 
 
 # partial_findArrivalTime = partial(fat.findArrivalTime, update=Update, context=ContextTypes.bot_data)
@@ -163,76 +186,178 @@ async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # Process the borough and station and find arrival times
 async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsToShow) -> int:
-    """Stores the selected station and find arrival time."""
 
-    # await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-    await update.message.reply_text(
-        "Processing... \U0001F52E",
-    )
+    if context.user_data["setting_favourites"]: # here from /set_favourite
+        # try to open pickle file, otherwise create it
+        try:
+            dbfile = open('my_persistence', 'rb')     
+            db = pickle.load(dbfile)
+            dbfile.close()
+        except:
+            db = utils.makeNestedDict()
+        # Store favourite station
+        db['users'][update.effective_user.id]['favourite_station'] = update.message.text
+        # Its important to use binary mode
+        dbfile = open('my_persistence', 'wb')
+        # source, destination
+        pickle.dump(db, dbfile)                     
+        dbfile.close()
 
-    # Load stops file
-    df_stops = context.bot_data["df_stops"]
+        # await update.message.reply_text(
+        #     "Favourite station set correctly.",
+        #     reply_markup=ReplyKeyboardRemove()
+        # ),
+        return await set_favourite_direction(update, context)
 
-    # Load shapes file
-    df_shapes = context.bot_data["df_shapes"]
-
-    # Load stop_times and trips for current day
-    df_stop_times = context.bot_data["df_stop_times"]
-    df_trips = context.bot_data["df_trips"]
-
-
-    userStation = update.message.text
-    user = update.message.from_user
-
-    logger.info("Station of %s: %s", user.first_name, update.message.text)
-
-    # """ Send warning about Broad Channel ---> Broad Channel fixed now by skipping H19 trains?"""
-    # if update.message.text == 'Broad Channel':
-    #     await update.message.reply_markdown_v2(
-    #         '__*Attention*__: Broad Channel train schedule might be incomplete and/or train headsigns might be wrong\.',
-    #         reply_markup=ReplyKeyboardRemove(),
-    #     )
-
-
-
-    # tasks = [asyncio.to_thread(partial_findArrivalTime)]
-    # trains, destinations, waiting_times, directions = await asyncio.gather(*tasks)
-    
-    # tasks = [asyncio.to_thread(partial_findArrivalTime)]
-    # res = await asyncio.gather(*tasks)
-
-    # trains, destinations, waiting_times, directions = await loop.run_in_executor(_executor, partial_findArrivalTime)
-
-    # trains, destinations, waiting_times, directions = await ma.make_async(partial_findArrivalTime)
-
-    trains, destinations, waiting_times, directions = await fat.findArrivalTime(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation)
-
-    # If the considered station is served by some train
-    if (trains is not None) and (destinations is not None) and (waiting_times is not None) and (directions is not None):
-
-        emoji_indication = [('\U0001F53C' if directions[i] == 'N' else ('\U0001F53D' if directions[i] == 'S' else directions[i])) for i in range(0,len(directions))]
-
-        outStr = ""
-        for i in range(0,len(trains)):
-            outStr = outStr + emoji_indication[i] + " Train " + trains[i] + " (" + destinations[i] + ") - " + str(waiting_times[i]) + " min\n"
-
-        await update.message.reply_text(
-            outStr,
-            reply_markup=ReplyKeyboardRemove(),
-        )
     else:
+
+        """Stores the selected station and find arrival time."""
+
+        # await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
         await update.message.reply_text(
-        "This station is not currently served by any train. Use /alerts to check the train status.",
-    )
+            "Processing... \U0001F52E",
+        )
 
-    await update.message.reply_text(
-        "Select another borough and station, or send /stop if you don't want to \U0000270B",
-        reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder=input_field_placeholder
-        ),
-    )
+        # Load stops file
+        df_stops = context.bot_data["df_stops"]
 
-    return BOROUGH
+        # Load shapes file
+        df_shapes = context.bot_data["df_shapes"]
+
+        # Load stop_times and trips for current day
+        df_stop_times = context.bot_data["df_stop_times"]
+        df_trips = context.bot_data["df_trips"]
+
+
+        userStation = update.message.text
+        user = update.message.from_user
+
+        logger.info("Station of %s: %s", user.first_name, update.message.text)
+
+        # """ Send warning about Broad Channel ---> Broad Channel fixed now by skipping H19 trains?"""
+        # if update.message.text == 'Broad Channel':
+        #     await update.message.reply_markdown_v2(
+        #         '__*Attention*__: Broad Channel train schedule might be incomplete and/or train headsigns might be wrong\.',
+        #         reply_markup=ReplyKeyboardRemove(),
+        #     )
+
+
+
+        # tasks = [asyncio.to_thread(partial_findArrivalTime)]
+        # trains, destinations, waiting_times, directions = await asyncio.gather(*tasks)
+        
+        # tasks = [asyncio.to_thread(partial_findArrivalTime)]
+        # res = await asyncio.gather(*tasks)
+
+        # trains, destinations, waiting_times, directions = await loop.run_in_executor(_executor, partial_findArrivalTime)
+
+        # trains, destinations, waiting_times, directions = await ma.make_async(partial_findArrivalTime)
+
+        trains, destinations, waiting_times, directions = await fat.findArrivalTime(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation, favourite=False)
+
+        # If the considered station is served by some train
+        if (trains is not None) and (destinations is not None) and (waiting_times is not None) and (directions is not None):
+
+            emoji_indication = [('\U0001F53C' if directions[i] == 'N' else ('\U0001F53D' if directions[i] == 'S' else directions[i])) for i in range(0,len(directions))]
+
+            outStr = ""
+            for i in range(0,len(trains)):
+                outStr = outStr + emoji_indication[i] + " Train " + trains[i] + " (" + destinations[i] + ") - " + str(waiting_times[i]) + " min\n"
+
+            await update.message.reply_text(
+                outStr,
+                reply_markup=ReplyKeyboardRemove(),
+            )
+        else:
+            await update.message.reply_text(
+            "This station is not currently served by any train. Use /alerts to check the train status.",
+        )
+
+        if context.user_data["setting_favourites"]: # here from /set_favourite
+            return
+        else:
+            await update.message.reply_text(
+                "Select another borough and station, or send /stop if you don't want to \U0000270B",
+                reply_markup=ReplyKeyboardMarkup(
+                    reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder=input_field_placeholder
+                ),
+            )
+            return BOROUGH
+
+
+async def favourite(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsToShow) -> int:
+        
+        """Stores the selected station and find arrival time."""
+
+        # try to open pickle file, otherwise create it
+        try:
+            dbfile = open('my_persistence', 'rb')     
+            db = pickle.load(dbfile)
+            dbfile.close()
+        except:
+            db = utils.makeNestedDict()
+
+        if 'favourite_borough' not in db['users'][update.effective_user.id] or 'favourite_station' not in db['users'][update.effective_user.id]:
+            await update.message.reply_text(
+            "You first need to set your favourite station with /set_favourite.",
+            )
+            return ConversationHandler.END
+
+    
+        await update.message.reply_text(
+            "Processing... \U0001F52E",
+        )
+        await update.message.reply_text(
+            "Tracking favourite station: " + db['users'][update.effective_user.id]['favourite_borough'] + " - " + db['users'][update.effective_user.id]['favourite_station']
+        )
+
+        # Load stops file
+        df_stops = context.bot_data["df_stops"]
+
+        # Load shapes file
+        df_shapes = context.bot_data["df_shapes"]
+
+        # Load stop_times and trips for current day
+        df_stop_times = context.bot_data["df_stop_times"]
+        df_trips = context.bot_data["df_trips"]
+
+
+        userStation = db['users'][update.effective_user.id]['favourite_station']
+
+
+        trains, destinations, waiting_times, directions = await fat.findArrivalTime(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation, favourite=True)
+
+        # If the considered station is served by some train
+        if (trains is not None) and (destinations is not None) and (waiting_times is not None) and (directions is not None):
+
+            emoji_indication = [('\U0001F53C' if directions[i] == 'N' else ('\U0001F53D' if directions[i] == 'S' else directions[i])) for i in range(0,len(directions))]
+
+            outStr = ""
+            for i in range(0,len(trains)):
+                outStr = outStr + emoji_indication[i] + " Train " + trains[i] + " (" + destinations[i] + ") - " + str(waiting_times[i]) + " min\n"
+
+            await update.message.reply_text(
+                outStr,
+                reply_markup=ReplyKeyboardRemove(),
+            )
+        else:
+            await update.message.reply_text(
+            "This station is not currently served by any train. Use /alerts to check the train status.",
+        )
+
+        if context.user_data["setting_favourites"]: # here from /set_favourite
+            return ConversationHandler.END
+        else:
+            await update.message.reply_text(
+                "Select another borough and station, or send /stop if you don't want to \U0000270B",
+                reply_markup=ReplyKeyboardMarkup(
+                    reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder=input_field_placeholder
+                ),
+            )
+            return BOROUGH
+
+
+
 
 
 async def ask_alerts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -388,10 +513,10 @@ async def get_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     utils.recordUserInteraction(update, context)
 
-    return FORWARD_USER_BUG_REPORT
+    return SEND_USER_BUG_REPORT
 
 
-async def forward_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE, max_daily_reports) -> int:
+async def send_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE, max_daily_reports) -> int:
 
     # try to open pickle file, otherwise create it
     try:
@@ -524,9 +649,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='MarkdownV2',
         reply_markup=ReplyKeyboardRemove()
     )
-
-
-
+    
 
 
 async def error_borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -598,12 +721,98 @@ async def error_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 
+async def set_favourite(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Sends a message with inline buttons attached."""
+    keyboard = [
+        [
+            InlineKeyboardButton("\U0001F44D", callback_data="Yes"),
+            InlineKeyboardButton("\U0001F44E", callback_data="No"),
+        ],
+    ]
+
+    await update.message.reply_text("Do you want to set a favourite subway station for quick train tracking?",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+    return SET_FAVOURITE
+
+
+async def set_favourite_direction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Sends a message with inline buttons attached."""
+    keyboard = [
+        [
+            InlineKeyboardButton("Uptown only", callback_data="N"),
+            InlineKeyboardButton("Downtown only", callback_data="S"),
+            InlineKeyboardButton("Both", callback_data="NS"),
+        ],
+    ]
+
+    await update.message.reply_text("Which train direction are you interested in?",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+    return SET_FAVOURITE_DIRECTION
+
+
+
+
+async def button_pressed(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Parses the CallbackQuery and updates the message text."""
+    query = update.callback_query
+
+    # CallbackQueries need to be answered, even if no notification to the user is needed
+    # Some clients may have trouble otherwise. See https://core.telegram.org/bots/api#callbackquery
+    await query.answer()
+
+    if query.data == 'Yes':
+        await query.edit_message_text(text="Great!")
+        await track(update,context)
+    elif query.data == 'No':
+        await query.edit_message_text("That's okay.")
+
+    return BOROUGH
+
+
+async def button_pressed_direction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Parses the CallbackQuery and updates the message text."""
+    query = update.callback_query
+
+    # CallbackQueries need to be answered, even if no notification to the user is needed
+    # Some clients may have trouble otherwise. See https://core.telegram.org/bots/api#callbackquery
+    await query.answer()
+
+    dir_text = "northbound trains only" if query.data=='N' else "southbound trains only" if query.data=='S' else "both northbound and southbound trains"
+    dir_emoji = "\U0001F53C" if query.data=='N' else "\U0001F53D" if query.data=='S' else "\U0001F53C\U0001F53D"
+    await query.edit_message_text(text=f"Alright! Tracking {dir_text} {dir_emoji}\n\nYou can track your favourite train with the /track_favourite command.")
+
+    # try to open pickle file, otherwise create it
+    try:
+        dbfile = open('my_persistence', 'rb')     
+        db = pickle.load(dbfile)
+        dbfile.close()
+    except:
+        db = utils.makeNestedDict()
+    # Store favourite borough
+    db['users'][update.effective_user.id]['favourite_direction'] = query.data
+    # Its important to use binary mode
+    dbfile = open('my_persistence', 'wb')
+    # source, destination
+    pickle.dump(db, dbfile)                     
+    dbfile.close()
+    
+
+    return ConversationHandler.END
+
+
+
 async def post_init(application: Application) -> None:
     await application.bot.set_my_commands([('track','Track real time subway arrival times'),
+                                           ('track_favourite','Quick train tracking in favourite station'),
                                            ('alerts','Retrieve real time service alerts'),
                                            ('show_stops','Check train stops'),
                                            ('route_info','Get information on train operations'),
                                            ('report_bug','Send a message to report a bug'),
+                                           ('set_favourite','Set favourite subway station'),
                                            ('help','Get info on bot functionalities'),
                                            ('donate','Contribute to the bot expenses'),
                                            ('stop','Stop the bot')
@@ -638,11 +847,12 @@ def main() -> None:
     # partial_track = partial(track)
     # partial_borough = partial(borough, dictStations=dictStations)
     partial_station = partial(station, trainsToShow=trainsToShow)
+    partial_favourite = partial(favourite, trainsToShow=trainsToShow)
     # partial_error_borough = partial(error_borough)
     # partial_error_station = partial(error_station, dictStations=dictStations)
     # partial_ask_alerts = partial(ask_alerts)
     # partial_ask_route_info = partial(ask_route_info)
-    partial_forward_user_bug_report = partial(forward_user_bug_report, max_daily_reports=max_daily_reports)
+    partial_forward_user_bug_report = partial(send_user_bug_report, max_daily_reports=max_daily_reports)
 
     """Run the bot."""
 
@@ -669,33 +879,26 @@ def main() -> None:
     # Add job that daily updates the database 
     job_queue = application.job_queue
 
-    # utc = pytz.timezone('UTC')
-    # eastern = pytz.timezone('America/New_York')
-    # utc_time = datetime(2000, 1, 1, 8, 42, 59, tzinfo=utc) # date is not important, just write correct time for UTC timezone
-    # nyc_time = utc_time.astimezone(eastern) # I would like to specify the NYC time and not the UTC time, but this line needs to checked
-    nyc_time = datetime(2000, 1, 1, 4, 0, 0) # date is not important, just write correct time for NYC timezone
+    nyc_time = datetime(2000, 1, 1, 4, 0, 0) # day is not important, just write correct time for NYC timezone
 
     # This job is an hack to store GTFS supplemented .csv files in context.bot_data during initial code execution
-    job_once = job_queue.run_once(gtfs_update.gtfs_update,when=datetime.now(pytz.timezone('America/New_York'))+timedelta(seconds=5),data=(dir,filename),name='gtfs_first_update') # use data to pass arguments to callback
+    job_once = job_queue.run_once(gtfs_update.gtfs_update,when=datetime.now(pytz.timezone('America/New_York'))+timedelta(seconds=5),data=(dir,filename),name='gtfs_store_context') # use data to pass arguments to callback
     
     # This job updates the GTFS supplemented .csv files daily
     job_daily = job_queue.run_daily(gtfs_update.gtfs_update,time=nyc_time,days=(0,1,2,3,4,5,6),data=(dir,filename),name='gtfs_daily_update') # use data to pass arguments to callback
 
 
-    # Add conversation handler with the states BOROUGH, STATION, ASK_ROUTE_INFO ,and GIVE_ROUTE_INFO
+    # Add conversation handler with the states BOROUGH, STATION, GIVE_ALERT_INFO, GIVE_SHOW_STOPS, GIVE_ROUTE_INFO, and SEND_USER_BUG_REPORT
     conv_handler = ConversationHandler(
         entry_points=[
-            CommandHandler("start", start),
             CommandHandler("track", track),
+            CommandHandler("track_favourite", partial_favourite),
             CommandHandler("alerts", ask_alerts),
             CommandHandler("show_stops", ask_show_stops),
             CommandHandler("route_info", ask_route_info),
             CommandHandler("report_bug", get_user_bug_report),
-            CommandHandler("help", help),
-            CommandHandler("donate", donate),
-            CommandHandler("stats", stats),
-            CommandHandler("stop", stop)
-                      ],
+            CommandHandler("set_favourite", set_favourite),
+        ],
         states={ 
             BOROUGH: [
                 MessageHandler(filters.TEXT & filters.Regex(re.compile(r'|'.join(x for x in [j for i in reply_keyboard_borough for j in i]))), borough, block=False),
@@ -717,27 +920,30 @@ def main() -> None:
                 MessageHandler(filters.TEXT & filters.Regex(re.compile(r'|'.join(x for x in ["42nd Street Shuttle (S)" if r=='GS' else "Franklin Avenue Shuttle (S)" if r=='FS' else "Rockaway Park Shuttle (S)" if r=='H' else r for r in df_routes['route_id'].array]))), give_route_info, block=False),
                 MessageHandler(~filters.COMMAND, error_route_info, block=False),
             ],
-            FORWARD_USER_BUG_REPORT: [
+            SEND_USER_BUG_REPORT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, partial_forward_user_bug_report, block=False),
             ],
+            SET_FAVOURITE: [
+                CallbackQueryHandler(button_pressed),
+            ],
+            SET_FAVOURITE_DIRECTION: [
+                CallbackQueryHandler(button_pressed_direction),
+            ]
         },
         fallbacks=[CommandHandler("start", start)],
         persistent=True,
         name='ConversationHandler',
         allow_reentry = True
     )
-    application.add_handler(conv_handler)
 
     # Add handlers 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("alerts", ask_alerts))
-    application.add_handler(CommandHandler("show_stops", ask_show_stops))
-    application.add_handler(CommandHandler("route_info", ask_route_info))
-    application.add_handler(CommandHandler("report_bug", get_user_bug_report))
-    application.add_handler(CommandHandler("help", help))
-    application.add_handler(CommandHandler("donate", donate))
-    application.add_handler(CommandHandler("stats", stats))
-    application.add_handler(CommandHandler("stop", stop))
+    application.add_handler(conv_handler)
+    application.add_handler(CommandHandler('start', start))
+    application.add_handler(CommandHandler('help', help))
+    application.add_handler(CommandHandler('donate', donate))
+    application.add_handler(CommandHandler('stats', stats))
+    application.add_handler(CommandHandler('stop', stop))
+
 
 
     # Heroku webhook implementation

@@ -108,12 +108,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     hour = datetime.now(pytz.timezone('America/New_York')).hour
     greeting = "Good morning" if 5<=hour<12 else "Good afternoon" if hour<18 else "Good evening"
     await update.message.reply_text(
-        greeting + f", {user.mention_markdown_v2()}\! \n\n" +
-            "Use /track to start tracking New York City's subway arrival times \U0001F687\U0001F5FD\n\n"+
+        greeting + f", {user.mention_markdown_v2()}\! \U0001F5FD\n\n" +
+            "Use /track to start tracking New York City's subway arrival times \U0001F687\n\n"+
+            "Use /track\_favourite to quickly track your favourite station \U0001F680\n\n" +
             "Use /alerts to get real time alert information \U000026A0\n\n"+
             "Use /show\_stops to check train stops \U000024C2\n\n"+
             "Use /route\_info to get information on train operations \U00002139\n\n"+
             "Use /report\_bug to report something broken within the bot \U0000274C\n\n"+
+            "Use /set\_favourite to set your favourite subway station \U00002B50\n\n"+
+            "Use /help to get info on bot functionalities \U0001F64F\n\n"+
             "Use /donate to contribute to the bot expenses \U0001F680\n\n"+
             "Use /stop to stop this bot \U0000270B",
         parse_mode='MarkdownV2',
@@ -583,12 +586,15 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     hour = datetime.now(pytz.timezone('America/New_York')).hour
     greeting = "Good morning" if 5<=hour<12 else "Good afternoon" if hour<18 else "Good evening"
     await update.message.reply_text(
-        greeting + f", {user.mention_markdown_v2()}\! \n\n" +
-            "Use /track to start tracking New York City's subway arrival times \U0001F687\U0001F5FD\n\n"+
+        greeting + f", {user.mention_markdown_v2()}\! \U0001F5FD\n\n" +
+            "Use /track to start tracking New York City's subway arrival times \U0001F687\n\n"+
+            "Use /track\_favourite to quickly track your favourite station \U0001F680\n\n" +
             "Use /alerts to get real time alert information \U000026A0\n\n"+
             "Use /show\_stops to check train stops \U000024C2\n\n"+
             "Use /route\_info to get information on train operations \U00002139\n\n"+
             "Use /report\_bug to report something broken within the bot \U0000274C\n\n"+
+            "Use /set\_favourite to set your favourite subway station \U00002B50\n\n"+
+            "Use /help to get info on bot functionalities \U0001F64F\n\n"+
             "Use /donate to contribute to the bot expenses \U0001F680\n\n"+
             "Use /stop to stop this bot \U0000270B",
         parse_mode='MarkdownV2',
@@ -603,7 +609,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Displays info on donate."""
     await update.message.reply_text(
-        "If you find this bot useful, please chip in\! Your support will help us keep this bot accessible to everyone \U0001F680\n\n"+
+        "If you find this bot useful, please chip in\! Your support will help us keep this bot accessible to everyone \U0001F4AA\n\n"+
         "Thank you\!\n\n"+
         "[PayPal donation link](https://www.paypal.com/donate/?business=53MCWVS8WMAM4&no_recurring=0&currency_code=USD)",
         parse_mode='MarkdownV2',

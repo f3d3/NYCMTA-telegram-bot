@@ -94,11 +94,11 @@ input_field_placeholder = boroughs[0]+", "+boroughs[1]+", "+boroughs[2]+", "+bor
 
 # Dictionary of various borough stations
 dictStations = {
-    "Manhattan": pd.read_csv(os.getcwd()+'cache/stops_names/manhattan.txt',header=None).values.ravel(),
-    "Brooklyn": pd.read_csv(os.getcwd()+'cache/stops_names/brooklyn.txt',header=None).values.ravel(),
-    "Queens": pd.read_csv(os.getcwd()+'cache/stops_names/queens.txt',header=None).values.ravel(),
-    "The Bronx": pd.read_csv(os.getcwd()+'cache/stops_names/the_bronx.txt',header=None).values.ravel(),
-    "Staten Island": pd.read_csv(os.getcwd()+'cache/stops_names/staten_island.txt',header=None).values.ravel()
+    "Manhattan": pd.read_csv(os.getcwd()+'/cache/stops_names/manhattan.txt',header=None).values.ravel(),
+    "Brooklyn": pd.read_csv(os.getcwd()+'/cache/stops_names/brooklyn.txt',header=None).values.ravel(),
+    "Queens": pd.read_csv(os.getcwd()+'/cache/stops_names/queens.txt',header=None).values.ravel(),
+    "The Bronx": pd.read_csv(os.getcwd()+'/cache/stops_names/the_bronx.txt',header=None).values.ravel(),
+    "Staten Island": pd.read_csv(os.getcwd()+'/cache/stops_names/staten_island.txt',header=None).values.ravel()
 }
 
 
@@ -844,10 +844,10 @@ def main() -> None:
 
 
     # Load routes file
-    df_routes = pd.read_csv(os.getcwd()+'gtfs static files/routes.txt')
+    df_routes = pd.read_csv(os.getcwd()+'/gtfs static files/routes.txt')
 
     # Load alphabetically sorted stations file
-    sortedStations = pd.read_csv(os.getcwd()+'cache/stops_names/sorted_stations.txt',header=None).values.ravel()
+    sortedStations = pd.read_csv(os.getcwd()+'/cache/stops_names/sorted_stations.txt',header=None).values.ravel()
 
     # partial functions needed to pass additional arguments to them in order to avoid reading csv each time
     # partial_track = partial(track)

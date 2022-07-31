@@ -827,7 +827,7 @@ async def post_init(application: Application) -> None:
 
 def main() -> None:
 
-    dir = 'gtfs static files/'
+    dir = os.getcwd()+'/gtfs static files/'
     filename = 'google_transit_supplemented.zip'
 
     # Select how many incoming trains to show in output

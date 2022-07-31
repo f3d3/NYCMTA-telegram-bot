@@ -25,14 +25,14 @@ async def storeContext(context: ContextTypes.DEFAULT_TYPE, dir):
 
         # Store both stop_times and trips for current day in bot_data to avoid further access to local storage
         if date.today().weekday() == 5: # Saturday
-            context.bot_data["df_stop_times"] = pd.read_csv('cache/stop_times/Saturday.csv')
-            context.bot_data["df_trips"] = pd.read_csv('cache/trips/Saturday.csv')
+            context.bot_data["df_stop_times"] = pd.read_csv(os.getcwd()+'/cache/stop_times/Saturday.csv')
+            context.bot_data["df_trips"] = pd.read_csv(os.getcwd()+'/cache/trips/Saturday.csv')
         elif date.today().weekday() == 6: # Sunday
-            context.bot_data["df_stop_times"] = pd.read_csv('cache/stop_times/Sunday.csv')
-            context.bot_data["df_trips"] = pd.read_csv('cache/trips/Sunday.csv')
+            context.bot_data["df_stop_times"] = pd.read_csv(os.getcwd()+'/cache/stop_times/Sunday.csv')
+            context.bot_data["df_trips"] = pd.read_csv(os.getcwd()+'/cache/trips/Sunday.csv')
         else: # Weekday
-            context.bot_data["df_stop_times"] = pd.read_csv('cache/stop_times/Weekday.csv')
-            context.bot_data["df_trips"] = pd.read_csv('cache/trips/Weekday.csv')
+            context.bot_data["df_stop_times"] = pd.read_csv(os.getcwd()+'/cache/stop_times/Weekday.csv')
+            context.bot_data["df_trips"] = pd.read_csv(os.getcwd()+'/cache/trips/Weekday.csv')
 
 
 

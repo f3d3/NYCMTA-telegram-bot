@@ -60,15 +60,14 @@ async def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df
     except:
         db = utils.makeNestedDict()
 
-    if favourite and 'favourite_direction' in db['users'][update.effective_user.id]:
-        if db['users'][update.effective_user.id]['favourite_direction']=='N' or db['users'][update.effective_user.id]['favourite_direction']=='S':
-            stop_ids = [val for val in stop_ids if val.endswith(db['users'][update.effective_user.id]['favourite_direction'])]
+    if favourite:
+        if 'favourite_direction' in db['users'][update.effective_user.id]:
+            if db['users'][update.effective_user.id]['favourite_direction']=='N' or db['users'][update.effective_user.id]['favourite_direction']=='S':
+                stop_ids = [val for val in stop_ids if val.endswith(db['users'][update.effective_user.id]['favourite_direction'])]
         else:
-            pass
-    else:
-        await update.message.reply_text(
-            "You first need to set your favourite direction with /set_favourite.")
-        return ConversationHandler.END
+            await update.message.reply_text(
+                "You first need to set your favourite direction with /set_favourite.")
+            return ConversationHandler.END
 
 
     # Since train names can't be extracted from stop_ids reliably, get the selected station's coordinates 

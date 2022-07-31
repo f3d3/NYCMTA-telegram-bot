@@ -31,7 +31,7 @@ import findArrivalTime as fat
 import findAlerts as fa
 import findStops as fs
 import utils
-import constants
+import config
 
 from datetime import datetime, timedelta
 import pytz
@@ -973,10 +973,10 @@ def main() -> None:
 if __name__ == "__main__":
 
     # Add your personal MTA API key
-    os.environ["MTA_API_key"] = constants.MTA_API_key
+    os.environ["MTA_API_key"] = config.MTA_API_key
 
     # Add your personal Telegram bot's token.
-    os.environ["BOT_TOKEN"] = constants.BOT_TOKEN
+    os.environ["BOT_TOKEN"] = config.BOT_TOKEN
 
     main()
 

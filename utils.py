@@ -1,5 +1,5 @@
 from functools import wraps
-import constants
+import config
 import collections
 
 from telegram import Update, ReplyKeyboardRemove
@@ -24,7 +24,7 @@ def send_action(action):
     return decorator
 
 
-LIST_OF_ADMINS = constants.LIST_OF_ADMINS
+LIST_OF_ADMINS = config.LIST_OF_ADMINS
 def restricted(func):
     @wraps(func)
     async def wrapped(update, context, *args, **kwargs):

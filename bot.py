@@ -39,6 +39,8 @@ import pytz
 import asyncio
 import pickle
 
+from uuid import uuid4
+
 
 import logging
 
@@ -57,8 +59,15 @@ if __version_info__ < (20, 0, 0, "alpha", 1):
     )
 
 
+from telegram import (
+    constants,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup
+)
 
-from telegram import constants, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -516,7 +525,7 @@ async def get_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE
                 reply_markup=ReplyKeyboardRemove()
             )
             return
-            
+
     # otherwise allow users to report bugs with the bot
     await update.message.reply_text(
         "This command is intended for bug reporting only. Send your message below with as many details as possible.",

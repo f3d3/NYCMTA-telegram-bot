@@ -516,15 +516,16 @@ async def get_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE
                 reply_markup=ReplyKeyboardRemove()
             )
             return
-        else: # allow users to report bugs with the bot
-            await update.message.reply_text(
-                "This command is intended for bug reporting only. Send your message below with as many details as possible.",
-                reply_markup=ReplyKeyboardRemove(),
-            )
+            
+    # otherwise allow users to report bugs with the bot
+    await update.message.reply_text(
+        "This command is intended for bug reporting only. Send your message below with as many details as possible.",
+        reply_markup=ReplyKeyboardRemove(),
+    )
 
-            utils.recordUserInteraction(update, context)
+    utils.recordUserInteraction(update, context)
 
-            return SEND_USER_BUG_REPORT
+    return SEND_USER_BUG_REPORT
 
 
 async def send_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE, max_daily_reports) -> int:

@@ -58,7 +58,7 @@ if __version_info__ < (20, 0, 0, "alpha", 1):
 
 
 
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import constants, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -90,7 +90,7 @@ reply_keyboard_borough = [["Manhattan","Brooklyn","Queens"],["The Bronx","Staten
 boroughs = functools.reduce(operator.iconcat, reply_keyboard_borough, [])
 
 # Make input field placeholder for borough choice
-input_field_placeholder = boroughs[0]+", "+boroughs[1]+", "+boroughs[2]+", "+boroughs[3]+", or "+boroughs[4]+"?"
+input_field_boroughs = boroughs[0]+", "+boroughs[1]+", "+boroughs[2]+", "+boroughs[3]+", or "+boroughs[4]+"?"
 
 # Dictionary of various borough stations
 dictStations = {
@@ -133,7 +133,7 @@ async def track(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.effective_message.reply_text( # effective_message can be used if we are here from both a CommandHandler (in case of /track) and CallbackQueryHandler (in case of /set_favourite)
         "Select the borough from the list.",
         reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder=input_field_placeholder
+            reply_keyboard_borough, one_time_keyboard=True, selective=True, input_field_placeholder=input_field_boroughs
         ),
     )
 
@@ -158,7 +158,7 @@ async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.effective_message.reply_text( # effective_message can be used if we are here from both a CommandHandler (in case of /track) and CallbackQueryHandler (in case of /set_favourite)
         "Select the station from the list",
         reply_markup=ReplyKeyboardMarkup(
-            [[button] for button in df_stations], one_time_keyboard=True, input_field_placeholder=df_stations[0]+", "+df_stations[1]+", "+df_stations[2]+", "+df_stations[3]+", "+df_stations[4]+"..."
+            [[button] for button in df_stations], one_time_keyboard=True, selective=True, input_field_placeholder=df_stations[0]+", "+df_stations[1]+", "+df_stations[2]+", "+df_stations[3]+", "+df_stations[4]+"..."
         ),
     )
 
@@ -282,7 +282,7 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsToSh
             await update.message.reply_text(
                 "Select another borough and station, or send /stop if you don't want to \U0000270B",
                 reply_markup=ReplyKeyboardMarkup(
-                    reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder=input_field_placeholder
+                    reply_keyboard_borough, one_time_keyboard=True, selective=True, input_field_placeholder=input_field_boroughs
                 ),
             )
             return BOROUGH
@@ -354,7 +354,7 @@ async def favourite(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsTo
             await update.message.reply_text(
                 "Select another borough and station, or send /stop if you don't want to \U0000270B",
                 reply_markup=ReplyKeyboardMarkup(
-                    reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder=input_field_placeholder
+                    reply_keyboard_borough, one_time_keyboard=True, selective=True, input_field_placeholder=input_field_boroughs
                 ),
             )
             return BOROUGH
@@ -373,7 +373,7 @@ async def ask_alerts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text(
         "Which train are you interested in?",
         reply_markup=ReplyKeyboardMarkup(
-            [[button] for button in routes], one_time_keyboard=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
+            [[button] for button in routes], one_time_keyboard=True, selective=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
         ),
     )
 
@@ -401,16 +401,14 @@ async def give_alert_info(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     alert = await fa.findAlerts(update, context, selected_train)
     
     if len(alert)==0:
-        await update.message.reply_text("No alerts provided for " + selected_train +' trains.',
-              reply_markup=ReplyKeyboardRemove())
+        await update.message.reply_text("No alerts provided for " + selected_train +' trains.')
     else:
         for i in range(len(alert)):
             alert_msg = ''
             for j in range(len(alert[i])):
                 alert_msg = alert_msg + alert[i][j]+'\n\n'
-            await update.message.reply_text(
-                  alert_msg,
-                  reply_markup=ReplyKeyboardRemove())
+            await update.message.reply_text(alert_msg,
+                reply_markup=ReplyKeyboardRemove())
 
     return ConversationHandler.END
 
@@ -427,7 +425,7 @@ async def ask_show_stops(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text(
         "Which train are you interested in?",
         reply_markup=ReplyKeyboardMarkup(
-            [[button] for button in routes], one_time_keyboard=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
+            [[button] for button in routes], one_time_keyboard=True, selective=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
         ),
     )
 
@@ -457,7 +455,8 @@ async def give_show_stops(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             stops_msg = stops_msg + "\U00002523 " + stops_list[i] + '\n'
     stops_msg = stops_msg.replace("-", "\-"); stops_msg = stops_msg.replace("(", "\("); stops_msg = stops_msg.replace(")", "\)")
 
-    await update.message.reply_markdown_v2(stops_msg, reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_markdown_v2(stops_msg,
+        reply_markup=ReplyKeyboardRemove())
 
     return ConversationHandler.END
 
@@ -472,7 +471,7 @@ async def ask_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text(
         "Which train are you interested in?",
         reply_markup=ReplyKeyboardMarkup(
-            [[button] for button in routes], one_time_keyboard=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
+            [[button] for button in routes], one_time_keyboard=True, selective=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
         ),
     )
 
@@ -508,15 +507,24 @@ async def give_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def get_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Allow users to report bug with the bot"""
-    await update.message.reply_text(
-        "This command is intended for bug reporting only. Send your message below with as many details as possible.",
-        reply_markup=ReplyKeyboardRemove(remove_keyboard=True),
-    )
 
-    utils.recordUserInteraction(update, context)
+    if update.message.chat.type == constants.ChatType.GROUP or update.message.chat.type == constants.ChatType.SUPERGROUP:  # can't report bugs when using bot in groups without admin rights
+        chat_member = await context.bot.get_chat_member(chat_id=update.effective_chat.id,user_id=context.bot.id)
+        if chat_member.status!=constants.ChatMemberStatus.ADMINISTRATOR:
+            await update.message.reply_text(
+                "This bot must be a group administrator to use this command \U000026D4",
+                reply_markup=ReplyKeyboardRemove()
+            )
+            return
+        else: # allow users to report bugs with the bot
+            await update.message.reply_text(
+                "This command is intended for bug reporting only. Send your message below with as many details as possible.",
+                reply_markup=ReplyKeyboardRemove(),
+            )
 
-    return SEND_USER_BUG_REPORT
+            utils.recordUserInteraction(update, context)
+
+            return SEND_USER_BUG_REPORT
 
 
 async def send_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYPE, max_daily_reports) -> int:
@@ -534,7 +542,6 @@ async def send_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYP
         if (datetime.now()-db['users'][update.effective_user.id]['last_bug_report']).total_seconds()<86400 and db['users'][update.effective_user.id]['total_bug_reports']>=max_daily_reports:
             await update.message.reply_text(
                 "Bug reports limit reached. Please, try again tomorrow.",
-                reply_markup=ReplyKeyboardRemove()
             )
             return ConversationHandler.END
         else:
@@ -559,8 +566,7 @@ async def send_user_bug_report(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.forward(chat_id='-1001708464995')
 
     await update.message.reply_text(
-        "Thank you for reporting a bug. We are doing our best to fix them as soon as possible \U0001F64F",
-        reply_markup=ReplyKeyboardRemove()
+        "Thank you for reporting a bug. We are doing our best to fix them as soon as possible \U0001F64F"
     )
 
     return ConversationHandler.END
@@ -663,7 +669,7 @@ async def error_borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await update.message.reply_text(
         "Do not type the borough name. Select a borough from the list below.",
         reply_markup=ReplyKeyboardMarkup(
-                reply_keyboard_borough, one_time_keyboard=True, input_field_placeholder=input_field_placeholder
+                reply_keyboard_borough, one_time_keyboard=True, selective=True, input_field_placeholder=input_field_boroughs
             ),
     )
     return BOROUGH
@@ -676,7 +682,7 @@ async def error_station(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await update.message.reply_text(
         "Do not type the station name. Select a station from the list.",
         reply_markup=ReplyKeyboardMarkup(
-                [[button] for button in df_stations], one_time_keyboard=True, input_field_placeholder=df_stations[0]+", "+df_stations[1]+", "+df_stations[2]+", "+df_stations[3]+", "+df_stations[4]+"..."
+                [[button] for button in df_stations], one_time_keyboard=True, selective=True, input_field_placeholder=df_stations[0]+", "+df_stations[1]+", "+df_stations[2]+", "+df_stations[3]+", "+df_stations[4]+"..."
             ),
     )
     return STATION
@@ -690,7 +696,7 @@ async def error_alert_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await update.message.reply_text(
         "Do not type the train name. Select a train from the list below.",
         reply_markup=ReplyKeyboardMarkup(
-                [[button] for button in routes], one_time_keyboard=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
+                [[button] for button in routes], one_time_keyboard=True, selective=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
             ),
     )
     return GIVE_ALERT_INFO
@@ -704,7 +710,7 @@ async def error_show_info(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text(
         "Do not type the train name. Select a train from the list below.",
         reply_markup=ReplyKeyboardMarkup(
-                [[button] for button in routes], one_time_keyboard=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
+                [[button] for button in routes], one_time_keyboard=True, selective=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
             ),
     )
     return GIVE_SHOW_STOPS
@@ -718,7 +724,7 @@ async def error_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await update.message.reply_text(
         "Do not type the train name. Select a train from the list below.",
         reply_markup=ReplyKeyboardMarkup(
-                [[button] for button in routes], one_time_keyboard=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
+                [[button] for button in routes], one_time_keyboard=True, selective=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
             ),
     )
     return GIVE_ROUTE_INFO
@@ -806,7 +812,6 @@ async def button_pressed_direction(update: Update, context: ContextTypes.DEFAULT
     pickle.dump(db, dbfile)                     
     dbfile.close()
     
-
     return ConversationHandler.END
 
 
@@ -839,8 +844,8 @@ def main() -> None:
 
     # Perform initial download/update of local files if needed
     loop = asyncio.get_event_loop()
-    coroutine = gtfs_update.gtfs_update(dir,filename)
-    loop.run_until_complete(coroutine)
+    gtfs_update_coroutine = gtfs_update.gtfs_update(dir,filename)
+    loop.run_until_complete(gtfs_update_coroutine)
 
 
     # Load routes file
@@ -849,20 +854,14 @@ def main() -> None:
     # Load alphabetically sorted stations file
     sortedStations = pd.read_csv(os.getcwd()+'/cache/stops_names/sorted_stations.txt',header=None).values.ravel()
 
-    # partial functions needed to pass additional arguments to them in order to avoid reading csv each time
-    # partial_track = partial(track)
-    # partial_borough = partial(borough, dictStations=dictStations)
+    # partial functions needed to pass additional arguments to them in order to avoid reading csv files each time
     partial_station = partial(station, trainsToShow=trainsToShow)
     partial_favourite = partial(favourite, trainsToShow=trainsToShow)
-    # partial_error_borough = partial(error_borough)
-    # partial_error_station = partial(error_station, dictStations=dictStations)
-    # partial_ask_alerts = partial(ask_alerts)
-    # partial_ask_route_info = partial(ask_route_info)
     partial_forward_user_bug_report = partial(send_user_bug_report, max_daily_reports=max_daily_reports)
 
     """Run the bot."""
 
-    BOT_TOKEN = os.environ.get("BOT_TOKEN")
+    BOT_TOKEN = config.BOT_TOKEN
 
     """Instantiate a Defaults object"""
     defaults = Defaults(disable_web_page_preview=True, tzinfo=pytz.timezone('America/New_York'))

@@ -2,6 +2,8 @@ import os
 import time
 import requests
 
+import utils
+
 import google.transit.gtfs_realtime_pb2 as gtfs_realtime_pb2
 
 from telegram import Update
@@ -10,18 +12,15 @@ from telegram.ext import (
     ContextTypes,
 )
 
-import utils
-
-
 # @utils.send_action(ChatAction.TYPING)
-# async def findAlerts_async(update, context, userTrain):
+# async def get_alerts_async(update, context, userTrain):
 #     loop = asyncio.get_event_loop()
-#     return await loop.run_in_executor(None, findAlerts, update, context, userTrain)
+#     return await loop.run_in_executor(None, get_alerts, update, context, userTrain)
 
 
 # import asyncio
 @utils.send_action(ChatAction.TYPING)
-async def findAlerts(update: Update, context: ContextTypes.DEFAULT_TYPE, userTrain):    
+async def get_alerts(update: Update, context: ContextTypes.DEFAULT_TYPE, userTrain):    
     
     MTA_API_key = os.environ.get("MTA_API_key")
     
@@ -60,7 +59,5 @@ async def findAlerts(update: Update, context: ContextTypes.DEFAULT_TYPE, userTra
                                                     alert.append([ent.alert.header_text.translation[0].text, ent.alert.description_text.translation[0].text])
                                         else:
                                             alert.append([ent.alert.header_text.translation[0].text])
-
-        
 
     return alert

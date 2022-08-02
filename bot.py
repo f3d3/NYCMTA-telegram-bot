@@ -23,13 +23,11 @@ from functools import *
 import functools
 import operator
 
-# from protobuf_to_dict import protobuf_to_dict
-
 import gtfs_update
 
-import findArrivalTime as fat
-import findAlerts as fa
-import findStops as fs
+import get_arrivals_departures
+import get_alerts
+import get_stops
 import utils
 import config
 
@@ -38,9 +36,6 @@ import pytz
 
 import asyncio
 import pickle
-
-from uuid import uuid4
-
 
 import logging
 
@@ -93,7 +88,8 @@ BOROUGH, STATION, GIVE_ALERT_INFO, GIVE_ROUTE_INFO, GIVE_SHOW_STOPS, SEND_USER_B
 
 
 # Keyboard borough buttons
-reply_keyboard_borough = [["Manhattan","Brooklyn","Queens"],["The Bronx","Staten Island"]]
+reply_keyboard_borough = [["The Bronx","Manhattan","Queens"],["Staten Island","Brooklyn"]]
+# reply_keyboard_borough = [["The Bronx \U0001F9F1","Manhattan \U0001F34E","Queens \U0001F310"],["Staten Island \U000026F4","Brooklyn \U0001F333"]]
 
 # Convert list of lists into a flat list
 boroughs = functools.reduce(operator.iconcat, reply_keyboard_borough, [])
@@ -115,7 +111,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the bot and welcomes the user."""
     user = update.message.from_user
     hour = datetime.now(pytz.timezone('America/New_York')).hour
-    greeting = "Good morning" if 5<=hour<12 else "Good afternoon" if hour<18 else "Good evening"
+    greeting = "Good morning" if 5<=hour<12 else "Good afternoon" if 12<=hour<18 else "Good evening" if 18<=hour<22 else "Good night"
     await update.message.reply_text(
         greeting + f", {user.mention_markdown_v2()}\! \U0001F5FD\n\n" +
             "Use /track to start tracking New York City's subway arrival times \U0001F687\n\n"+
@@ -193,9 +189,6 @@ async def borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 
-# partial_findArrivalTime = partial(fat.findArrivalTime, update=Update, context=ContextTypes.bot_data)
-
-
 # Process the borough and station and find arrival times
 async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsToShow) -> int:
 
@@ -255,17 +248,17 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsToSh
 
 
 
-        # tasks = [asyncio.to_thread(partial_findArrivalTime)]
+        # tasks = [asyncio.to_thread(partial_get_arrivals_departures)]
         # trains, destinations, waiting_times, directions = await asyncio.gather(*tasks)
         
-        # tasks = [asyncio.to_thread(partial_findArrivalTime)]
+        # tasks = [asyncio.to_thread(partial_get_arrivals_departures)]
         # res = await asyncio.gather(*tasks)
 
-        # trains, destinations, waiting_times, directions = await loop.run_in_executor(_executor, partial_findArrivalTime)
+        # trains, destinations, waiting_times, directions = await loop.run_in_executor(_executor, partial_get_arrivals_departures)
 
-        # trains, destinations, waiting_times, directions = await ma.make_async(partial_findArrivalTime)
+        # trains, destinations, waiting_times, directions = await ma.make_async(partial_get_arrivals_departures)
 
-        trains, destinations, waiting_times, directions = await fat.findArrivalTime(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation, favourite=False)
+        trains, destinations, waiting_times, directions = await get_arrivals_departures.get_arrivals_departures(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation, favourite=False)
 
         # If the considered station is served by some train
         if (trains is not None) and (destinations is not None) and (waiting_times is not None) and (directions is not None):
@@ -297,7 +290,7 @@ async def station(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsToSh
             return BOROUGH
 
 
-async def favourite(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsToShow) -> int:
+async def track_favourite(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsToShow) -> int:
         
         """Stores the selected station and find arrival time."""
 
@@ -337,7 +330,7 @@ async def favourite(update: Update, context: ContextTypes.DEFAULT_TYPE, trainsTo
         userStation = db['users'][update.effective_user.id]['favourite_station']
 
 
-        trains, destinations, waiting_times, directions = await fat.findArrivalTime(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation, favourite=True)
+        trains, destinations, waiting_times, directions = await get_arrivals_departures.get_arrivals_departures(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation, favourite=True)
 
         # If the considered station is served by some train
         if (trains is not None) and (destinations is not None) and (waiting_times is not None) and (directions is not None):
@@ -407,7 +400,7 @@ async def give_alert_info(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     logger.info("Train of %s: %s", user.first_name, selected_train)
 
-    alert = await fa.findAlerts(update, context, selected_train)
+    alert = await get_alerts.get_alerts(update, context, selected_train)
     
     if len(alert)==0:
         await update.message.reply_text("No alerts provided for " + selected_train +' trains.')
@@ -454,7 +447,7 @@ async def give_show_stops(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     else:
         selected_train=update.message.text
 
-    stops_list = await fs.findStops(update, context, selected_train)
+    stops_list = await get_stops.get_stops(update, context, selected_train)
 
     stops_msg = '*'+update.message.text + ' Train Stops*\n\n'
     for i in range(len(stops_list)):
@@ -600,7 +593,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Displays info on how to use the bot."""
     user = update.message.from_user
     hour = datetime.now(pytz.timezone('America/New_York')).hour
-    greeting = "Good morning" if 5<=hour<12 else "Good afternoon" if hour<18 else "Good evening"
+    greeting = "Good morning" if 5<=hour<12 else "Good afternoon" if 12<=hour<18 else "Good evening" if 18<=hour<22 else "Good night"
     await update.message.reply_text(
         greeting + f", {user.mention_markdown_v2()}\! \U0001F5FD\n\n" +
             "Use /track to start tracking New York City's subway arrival times \U0001F687\n\n"+
@@ -625,7 +618,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def donate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Displays info on donate."""
     await update.message.reply_text(
-        "If you find this bot useful, please chip in\! Your support will help us keep this bot accessible to everyone \U0001F4AA\n\n"+
+        "If you find this bot useful, please chip in\! Your support will help to keep this bot accessible to everyone \U0001F4AA\n\n"+
         "Thank you\!\n\n"+
         "[PayPal donation link](https://www.paypal.com/donate/?business=53MCWVS8WMAM4&no_recurring=0&currency_code=USD)",
         parse_mode='MarkdownV2',
@@ -866,12 +859,12 @@ def main() -> None:
 
     # partial functions needed to pass additional arguments to them in order to avoid reading csv files each time
     partial_station = partial(station, trainsToShow=trainsToShow)
-    partial_favourite = partial(favourite, trainsToShow=trainsToShow)
+    partial_track_favourite = partial(track_favourite, trainsToShow=trainsToShow)
     partial_forward_user_bug_report = partial(send_user_bug_report, max_daily_reports=max_daily_reports)
 
     """Run the bot."""
 
-    BOT_TOKEN = config.BOT_TOKEN
+    BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
     """Instantiate a Defaults object"""
     defaults = Defaults(disable_web_page_preview=True, tzinfo=pytz.timezone('America/New_York'))
@@ -907,7 +900,7 @@ def main() -> None:
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("track", track),
-            CommandHandler("track_favourite", partial_favourite),
+            CommandHandler("track_favourite", partial_track_favourite),
             CommandHandler("alerts", ask_alerts),
             CommandHandler("show_stops", ask_show_stops),
             CommandHandler("route_info", ask_route_info),

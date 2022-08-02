@@ -33,7 +33,7 @@ async def cache_stop_times(dir):
 
 
 # Split the large txt files into smaller ones to fasten later processing
-async def createCache(dir):
+async def create_cache(dir):
     
     print("*** Cache creation started ***")
     print("1/3")

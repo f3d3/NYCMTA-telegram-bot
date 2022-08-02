@@ -8,7 +8,7 @@ import utils
 
 
 @utils.send_action(ChatAction.TYPING)
-async def findStops(update: Update, context: ContextTypes.DEFAULT_TYPE, selected_train):
+async def get_stops(update: Update, context: ContextTypes.DEFAULT_TYPE, selected_train):
 
     df_stop_times = context.bot_data["df_stop_times"]
     df_stops = context.bot_data["df_stops"]

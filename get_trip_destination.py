@@ -1,18 +1,18 @@
 from datetime import date,datetime,timedelta
 import pandas as pd
-
 import asyncio
 
-async def findDestination_async(input_station, df_trips, df_stop_times):
+
+async def get_trip_destination_async(input_station, df_trips, df_stop_times):
     # loop = asyncio.get_event_loop()
     # return await loop.run_in_executor(
-    #     None, lambda: findDestination(input_station, df_trips, df_stop_times))
+    #     None, lambda: get_trip_destination(input_station, df_trips, df_stop_times))
 
     loop = asyncio.get_event_loop()
-    finaldestination, direction = await loop.run_in_executor(None, findDestination, input_station, df_trips, df_stop_times)
+    finaldestination, direction = await loop.run_in_executor(None, get_trip_destination, input_station, df_trips, df_stop_times)
     return finaldestination, direction
 
-def findDestination(input_station, df_trips, df_stop_times):
+def get_trip_destination(input_station, df_trips, df_stop_times):
 
     # Select trips that match the current day of the week to speed up later processing
     if date.today().weekday() == 5: # Saturday

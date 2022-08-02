@@ -5,8 +5,11 @@ import time
 import math
 import requests
 from datetime import datetime,timedelta
+import pickle
 
 import google.transit.gtfs_realtime_pb2 as gtfs_realtime_pb2
+
+import utils
 
 from telegram import Update
 from telegram.constants import ChatAction
@@ -14,10 +17,6 @@ from telegram.ext import (
     ContextTypes,
     ConversationHandler,
 )
-
-import utils
-
-import pickle
 
 
 # import asyncio
@@ -31,7 +30,7 @@ import pickle
 
 
 @utils.send_action(ChatAction.TYPING)
-async def findArrivalTime(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation, favourite):
+async def get_arrivals_departures(update: Update, context: ContextTypes.DEFAULT_TYPE, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation, favourite):
     
     FLAG_DEBUG = False
 

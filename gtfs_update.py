@@ -8,7 +8,7 @@ import pickle
 
 from telegram.ext import ContextTypes
 
-import createCache
+import create_cache
 
 import utils
 
@@ -86,7 +86,7 @@ async def gtfs_update(*args):
             print("Error: %s file not found" % filename)
         
         # Split the large downloaded txt files into smaller ones to fasten later processing
-        await createCache.createCache(dir)
+        await create_cache.create_cache(dir)
 
         # database
         db['last_gtfs_update'] = datetime.now() 

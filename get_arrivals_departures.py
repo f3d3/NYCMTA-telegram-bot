@@ -69,9 +69,39 @@ async def get_arrivals_departures(update: Update, context: ContextTypes.DEFAULT_
             return ConversationHandler.END
 
 
-    # Since train names can't be extracted from stop_ids reliably, get the selected station's coordinates 
-    df_stops_coord = df_stops.loc[df_stops['stop_name']==userStation][['stop_lat','stop_lon']]
+    # Since train names can't be extracted from stop_ids reliably, get the selected station's coordinates
+    if userStation in ['77 St', '79 St', '8 Av']:
+        df_stops_coord = pd.DataFrame(columns=['stop_lat','stop_lon'])
+
+        if favourite==True:
+            borough = db['users'][update.effective_user.id]['favourite_borough']
+        else:
+            borough = context.user_data["borough"]
+
+        # if userStation=='14 St':
+        #         df_stops_coord = df_stops.loc[df_stops['stop_id']=='132'][['stop_lat','stop_lon']]
+        # if userStation=='14 St/6 Av':
+        #         df_stops_coord = df_stops.loc[df_stops['stop_id']=='132'][['stop_lat','stop_lon']]
+        # if userStation=='14 St/8 Av':
+        #         df_stops_coord = df_stops.loc[df_stops['stop_id']=='A31' | df_stops['stop_id']=='A31'][['stop_lat','stop_lon']]
+
+        if borough=='Manhattan' and userStation=='77 St':
+                df_stops_coord = df_stops.loc[df_stops['stop_id']=='627'][['stop_lat','stop_lon']]
+        if borough=='Manhattan' and userStation=='79 St':
+                df_stops_coord = df_stops.loc[df_stops['stop_id']=='122'][['stop_lat','stop_lon']]
+        if borough=='Manhattan' and userStation=='8 Av':
+                df_stops_coord = df_stops.loc[df_stops['stop_id']=='L01'][['stop_lat','stop_lon']]
+        if borough=='Brooklyn' and userStation=='77 St':
+                df_stops_coord = df_stops.loc[df_stops['stop_id']=='R43'][['stop_lat','stop_lon']]
+        if borough=='Brooklyn' and userStation=='79 St':
+                df_stops_coord = df_stops.loc[df_stops['stop_id']=='B18'][['stop_lat','stop_lon']]
+        if borough=='Brooklyn' and userStation=='8 Av':
+                df_stops_coord = df_stops.loc[df_stops['stop_id']=='N02'][['stop_lat','stop_lon']]
+    else:
+        df_stops_coord = df_stops.loc[df_stops['stop_name']==userStation][['stop_lat','stop_lon']]
+
     df_stops_coord = df_stops_coord.drop_duplicates(subset=['stop_lat','stop_lon'])
+
 
     # Convert string coordinates to float coordinates
     df_stops_coord.stop_lat = df_stops_coord.stop_lat.astype(float);  df_stops_coord.stop_lon = df_stops_coord.stop_lon.astype(float)

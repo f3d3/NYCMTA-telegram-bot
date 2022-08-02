@@ -1,6 +1,5 @@
 1 Av
 103 St
-103 St-Corona Plaza
 104 St
 110 St
 116 St
@@ -9,58 +8,31 @@
 125 St
 135 St
 137 St-City College
-138 St-Grand Concourse
 14 St
 14 St-Union Sq
 145 St
-149 St-Grand Concourse
-15 St-Prospect Park
 155 St
 157 St
-161 St-Yankee Stadium
 163 St-Amsterdam Av
-167 St
 168 St
 168 St-Washington Hts
-169 St
-170 St
 175 St
-176 St
 18 St
 181 St
-182-183 Sts
-183 St
 190 St
 191 St
 2 Av
-20 Av
 207 St
-21 St
-21 St-Queensbridge
 215 St
-219 St
-225 St
 23 St
-231 St
-233 St
-238 St
-25 St
 28 St
 3 Av
-3 Av-138 St
-3 Av-149 St
 33 St
-33 St-Rawson St
 34 St-Herald Sq
 34 St-Hudson Yards
 34 St-Penn Station
-36 St
-40 St-Lowery St
 42 St-Bryant Pk
 42 St-Port Authority Bus Terminal
-45 St
-46 St
-46 St-Bliss St
 47-50 Sts-Rockefeller Ctr
 49 St
 5 Av
@@ -68,36 +40,20 @@
 5 Av/59 St
 50 St
 51 St
-52 St
-53 St
-55 St
 57 St
 57 St-7 Av
-59 St
 59 St-Columbus Circle
 6 Av
-62 St
-65 St
 66 St-Lincoln Center
 68 St-Hunter College
-69 St
-7 Av
-71 St
 72 St
 74 St-Broadway
-75 St-Elder Ln
 77 St
 79 St
 8 Av
 8 St-NYU
-80 St
 81 St-Museum of Natural History
-82 St-Jackson Hts
-85 St-Forest Pkwy
 86 St
-88 St
-9 Av
-90 St-Elmhurst Av
 96 St
 Astor Pl
 Bleecker St

@@ -3,8 +3,6 @@
 20 Av
 25 Av
 25 St
-30 Av
-36 Av
 36 St
 4 Av-9 St
 45 St
@@ -19,7 +17,6 @@
 8 Av
 9 Av
 Alabama Av
-Atlantic
 Atlantic Av
 Atlantic Av-Barclays Ctr
 Avenue H
@@ -32,15 +29,18 @@ Avenue U
 Avenue X
 Bay 50 St
 Bay Pkwy
-Bay Ridge-95 St
 Bay Ridge Av
-Bedford-Nostrand Avs
+Bay Ridge-95 St
 Bedford Av
+Bedford-Nostrand Avs
 Bergen St
 Beverley Rd
 Beverly Rd
 Borough Hall
+Botanic Garden
 Brighton Beach
+Broadway
+Broadway Junction
 Bushwick Av-Aberdeen St
 Canarsie-Rockaway Pkwy
 Carroll St
@@ -58,9 +58,7 @@ Crescent St
 Crown Hts-Utica Av
 Cypress Hills
 DeKalb Av
-Delancey St-Essex St
 Ditmas Av
-Dyckman St
 E 105 St
 Eastern Pkwy-Brooklyn Museum
 Euclid Av
@@ -68,36 +66,38 @@ Flatbush Av-Brooklyn College
 Flushing Av
 Fort Hamilton Pkwy
 Franklin Av
-Franklin St
+Franklin Av-Medgar Evers College
+Fulton St
 Gates Av
 Graham Av
 Grand Army Plaza
 Grand St
+Grant Av
 Greenpoint Av
 Halsey St
 Hewes St
 High St
-Hoyt-Schermerhorn Sts
 Hoyt St
+Hoyt-Schermerhorn Sts
 Jay St-MetroTech
 Jefferson St
 Junius St
 Kings Hwy
-Kingston-Throop Avs
 Kingston Av
+Kingston-Throop Avs
 Knickerbocker Av
 Kosciuszko St
+Lafayette Av
 Liberty Av
 Livonia Av
-Longwood Av
 Lorimer St
 Marcy Av
+Metropolitan Av
 Montrose Av
 Morgan Av
+Myrtle Av
 Myrtle-Willoughby Avs
 Myrtle-Wyckoff Avs
-Myrtle Av
-Nassau
 Nassau Av
 Neck Rd
 Neptune Av
@@ -127,5 +127,6 @@ Union St
 Utica Av
 Van Siclen Av
 W 8 St-NY Aquarium
+Wilson Av
 Winthrop St
 York St

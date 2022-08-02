@@ -2,6 +2,7 @@
 149 St-Grand Concourse
 161 St-Yankee Stadium
 167 St
+170 St
 174 St
 174-175 Sts
 176 St
@@ -18,7 +19,6 @@ Allerton Av
 Baychester Av
 Bedford Park Blvd
 Bedford Park Blvd-Lehman College
-Botanic Garden
 Bronx Park East
 Brook Av
 Buhre Av
@@ -33,13 +33,12 @@ Eastchester-Dyre Av
 Elder Av
 Fordham Rd
 Freeman St
-Grant Av
 Gun Hill Rd
 Hunts Point Av
 Intervale Av
 Jackson Av
 Kingsbridge Rd
-Metropolitan Av
+Longwood Av
 Middletown Rd
 Morris Park
 Morrison Av-Soundview
@@ -50,7 +49,6 @@ Norwood-205 St
 Parkchester
 Pelham Bay Park
 Pelham Pkwy
-Seneca Av
 Simpson St
 St Lawrence Av
 Tremont Av
@@ -59,6 +57,5 @@ Wakefield-241 St
 West Farms Sq-E Tremont Av
 Westchester Sq-E Tremont Av
 Whitlock Av
-Wilson Av
 Woodlawn
 Zerega Av

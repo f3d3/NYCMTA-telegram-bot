@@ -1,10 +1,8 @@
 1 Av
 103 St
-104 St
 110 St
 116 St
 116 St-Columbia University
-121 St
 125 St
 135 St
 137 St-City College
@@ -46,8 +44,8 @@
 6 Av
 66 St-Lincoln Center
 68 St-Hunter College
+7 Av
 72 St
-74 St-Broadway
 77 St
 79 St
 8 Av
@@ -60,8 +58,6 @@ Bleecker St
 Bowery
 Bowling Green
 Broad St
-Broadway
-Broadway Jct
 Broadway-Lafayette St
 Brooklyn Bridge-City Hall
 Canal St
@@ -71,13 +67,15 @@ Chambers St
 Christopher St-Sheridan Sq
 City Hall
 Cortlandt St
+Delancey St-Essex St
+Dyckman St
 East Broadway
+Franklin St
 Fulton St
 Grand Central-42 St
 Harlem-148 St
 Houston St
 Inwood-207 St
-Lafayette Av
 Lexington Av/53 St
 Lexington Av/59 St
 Lexington Av/63 St

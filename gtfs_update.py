@@ -57,7 +57,7 @@ async def gtfs_update(*args):
         db = utils.makeNestedDict()
         last_gtfs_update = datetime(2000, 1, 1, 0, 0, 0)
 
-    if (len(args)==1 and context.job.name=='gtfs_daily_update') or (len(args)==2 and datetime.now()-last_gtfs_update).total_seconds()<86400 and (os.path.isdir(dir)) and (os.path.isdir("cache/stop_times")) and (os.path.isdir("cache/trips")):
+    if (len(args)==1 and context.job.name=='gtfs_daily_update') or (len(args)==2 and (datetime.now()-last_gtfs_update).total_seconds()<86400 and (os.path.isdir(dir)) and (os.path.isdir("cache/stop_times")) and (os.path.isdir("cache/trips"))):
 
         # await context.bot.send_message(context.job.chat_id, text=f"We are updating the database. Please try again in a couple of minutes.")
 

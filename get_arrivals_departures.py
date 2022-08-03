@@ -19,6 +19,50 @@ from telegram.ext import (
 )
 
 
+
+async def identically_named_stations_coordinates(df_stops, borough, userStation):
+
+    df_stops_coord = pd.DataFrame(columns=['stop_lat','stop_lon'])
+
+    if borough=='Manhattan' and userStation=='77 St':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='627'][['stop_lat','stop_lon']]
+    if borough=='Manhattan' and userStation=='79 St':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='122'][['stop_lat','stop_lon']]
+    if borough=='Manhattan' and userStation=='86 St':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='121' | df_stops['stop_id']=='626' | df_stops['stop_id']=='A20' | df_stops['stop_id']=='Q04'][['stop_lat','stop_lon']]
+    if borough=='Manhattan' and userStation=='7 Av':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='D14'][['stop_lat','stop_lon']]
+    if borough=='Manhattan' and userStation=='8 Av':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='L01'][['stop_lat','stop_lon']]
+    if borough=='Manhattan' and userStation=='Fulton St':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='229' | df_stops['stop_id']=='418' | df_stops['stop_id']=='A38' | df_stops['stop_id']=='M22'][['stop_lat','stop_lon']]
+
+    if borough=='Brooklyn' and userStation=='36 St':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='R36'][['stop_lat','stop_lon']]
+    if borough=='Brooklyn' and userStation=='77 St':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='R43'][['stop_lat','stop_lon']]
+    if borough=='Brooklyn' and userStation=='79 St':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='B18'][['stop_lat','stop_lon']]
+    if borough=='Brooklyn' and userStation=='86 St':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='N10' | df_stops['stop_id']=='R44'][['stop_lat','stop_lon']]
+    if borough=='Brooklyn' and userStation=='7 Av':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='D25' | df_stops['stop_id']=='F24'][['stop_lat','stop_lon']]
+    if borough=='Brooklyn' and userStation=='8 Av':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='N02'][['stop_lat','stop_lon']]
+    if borough=='Brooklyn' and userStation=='Broadway':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='G30'][['stop_lat','stop_lon']]
+    if borough=='Brooklyn' and userStation=='Fulton St':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='G36'][['stop_lat','stop_lon']]
+
+    if borough=='Queens' and userStation=='36 St':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='G20'][['stop_lat','stop_lon']]
+    if borough=='Queens' and userStation=='Broadway':
+            df_stops_coord = df_stops.loc[df_stops['stop_id']=='R05'][['stop_lat','stop_lon']]
+
+    return df_stops_coord
+
+
+
 # import asyncio
 # @utils.send_action(ChatAction.TYPING)
 # async def findArrivalTime_asynced(update, context, df_trips, df_stops, df_stop_times, df_shapes, trainsToShow, userStation):
@@ -37,8 +81,8 @@ async def get_arrivals_departures(update: Update, context: ContextTypes.DEFAULT_
     MTA_API_key = os.environ.get("MTA_API_key")
     
     subwayDict =	{
-        "1-2-3-4-5-6-7-GS": "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs",       # 1,2,3,4,5,6,7
-        "A-C-E-H-FS"      : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace",   # A,C,E
+        "1-2-3-4-5-6-7-GS": "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs",       # 1,2,3,4,5,6,7,GS
+        "A-C-E-H-FS"      : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace",   # A,C,E,FS
         "B-D-F-M"         : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-bdfm",  # B,D,F,M
         "G"               : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-g",     # G
         "N-Q-R-W"         : "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-nqrw",  # N,Q,R,W
@@ -70,34 +114,13 @@ async def get_arrivals_departures(update: Update, context: ContextTypes.DEFAULT_
 
 
     # Since train names can't be extracted from stop_ids reliably, get the selected station's coordinates
-    if userStation in ['77 St', '79 St', '8 Av']:
-        df_stops_coord = pd.DataFrame(columns=['stop_lat','stop_lon'])
-
+    if userStation in ['36 St', '77 St', '79 St', '86 St' '7 Av', '8 Av', 'Broadway', 'Fulton St']: # there are NYC subway stations with the same name -> manually if the selected station is one of these and set the prooer station id
         if favourite==True:
             borough = db['users'][update.effective_user.id]['favourite_borough']
         else:
             borough = context.user_data["borough"]
-
-        # if userStation=='14 St':
-        #         df_stops_coord = df_stops.loc[df_stops['stop_id']=='132'][['stop_lat','stop_lon']]
-        # if userStation=='14 St/6 Av':
-        #         df_stops_coord = df_stops.loc[df_stops['stop_id']=='132'][['stop_lat','stop_lon']]
-        # if userStation=='14 St/8 Av':
-        #         df_stops_coord = df_stops.loc[df_stops['stop_id']=='A31' | df_stops['stop_id']=='A31'][['stop_lat','stop_lon']]
-
-        if borough=='Manhattan' and userStation=='77 St':
-                df_stops_coord = df_stops.loc[df_stops['stop_id']=='627'][['stop_lat','stop_lon']]
-        if borough=='Manhattan' and userStation=='79 St':
-                df_stops_coord = df_stops.loc[df_stops['stop_id']=='122'][['stop_lat','stop_lon']]
-        if borough=='Manhattan' and userStation=='8 Av':
-                df_stops_coord = df_stops.loc[df_stops['stop_id']=='L01'][['stop_lat','stop_lon']]
-        if borough=='Brooklyn' and userStation=='77 St':
-                df_stops_coord = df_stops.loc[df_stops['stop_id']=='R43'][['stop_lat','stop_lon']]
-        if borough=='Brooklyn' and userStation=='79 St':
-                df_stops_coord = df_stops.loc[df_stops['stop_id']=='B18'][['stop_lat','stop_lon']]
-        if borough=='Brooklyn' and userStation=='8 Av':
-                df_stops_coord = df_stops.loc[df_stops['stop_id']=='N02'][['stop_lat','stop_lon']]
-    else:
+        df_stops_coord = identically_named_stations_coordinates(df_stops, borough, userStation)
+    else: # there are no ambiguities with the station name
         df_stops_coord = df_stops.loc[df_stops['stop_name']==userStation][['stop_lat','stop_lon']]
 
     df_stops_coord = df_stops_coord.drop_duplicates(subset=['stop_lat','stop_lon'])
@@ -146,9 +169,7 @@ async def get_arrivals_departures(update: Update, context: ContextTypes.DEFAULT_
             feed.ParseFromString(response.content)
         except:
             return 'Failed while parsing train data'
-            
-        # test = protobuf_to_dict(feed)
-        
+                    
         for ent in feed.entity:
             if ent.HasField('trip_update'):
                 if ent.trip_update.trip.HasField('route_id'):

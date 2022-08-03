@@ -119,7 +119,7 @@ async def get_arrivals_departures(update: Update, context: ContextTypes.DEFAULT_
             borough = db['users'][update.effective_user.id]['favourite_borough']
         else:
             borough = context.user_data["borough"]
-        df_stops_coord = identically_named_stations_coordinates(df_stops, borough, userStation)
+        df_stops_coord = await identically_named_stations_coordinates(df_stops, borough, userStation)
     else: # there are no ambiguities with the station name
         df_stops_coord = df_stops.loc[df_stops['stop_name']==userStation][['stop_lat','stop_lon']]
 

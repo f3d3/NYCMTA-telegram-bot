@@ -887,7 +887,7 @@ def main() -> None:
     # Add job that daily updates the database 
     job_queue = application.job_queue
 
-    nyc_time = datetime(2000, 1, 1, 4, 0, 0) # day is not important, just write correct time for NYC timezone
+    nyc_time = datetime(2000, 1, 1, 5, 15, 0) # day is not important, just write correct time for NYC timezone
 
     # This job is an hack to store GTFS supplemented .csv files in context.bot_data during initial code execution
     job_once = job_queue.run_once(gtfs_update.gtfs_update,when=datetime.now(pytz.timezone('America/New_York'))+timedelta(seconds=5),data=(dir,filename),name='gtfs_store_context') # use data to pass arguments to callback

@@ -671,7 +671,7 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def error_borough(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     await update.message.reply_text(
-        "Do not type the borough name. Select a borough from the list below.",
+        "Do not type the borough name. Select a borough from the list below, or send /stop if you don't want to \U0000270B",
         reply_markup=ReplyKeyboardMarkup(
                 reply_keyboard_borough, one_time_keyboard=True, selective=True, input_field_placeholder=input_field_boroughs
             ),
@@ -684,7 +684,7 @@ async def error_station(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     df_stations = dictStations[context.user_data["borough"]]
 
     await update.message.reply_text(
-        "Do not type the station name. Select a station from the list.",
+        "Do not type the station name. Select a station from the list, or send /stop if you don't want to \U0000270B",
         reply_markup=ReplyKeyboardMarkup(
                 [[button] for button in df_stations], one_time_keyboard=True, selective=True, input_field_placeholder=df_stations[0]+", "+df_stations[1]+", "+df_stations[2]+", "+df_stations[3]+", "+df_stations[4]+"..."
             ),
@@ -698,7 +698,7 @@ async def error_alert_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     routes = df_routes['route_id'].values
 
     await update.message.reply_text(
-        "Do not type the train name. Select a train from the list below.",
+        "Do not type the train name. Select a train from the list below, or send /stop if you don't want to \U0000270B",
         reply_markup=ReplyKeyboardMarkup(
                 [[button] for button in routes], one_time_keyboard=True, selective=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
             ),
@@ -712,7 +712,7 @@ async def error_show_info(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     routes = df_routes['route_id'].values
 
     await update.message.reply_text(
-        "Do not type the train name. Select a train from the list below.",
+        "Do not type the train name. Select a train from the list below, or send /stop if you don't want to \U0000270B",
         reply_markup=ReplyKeyboardMarkup(
                 [[button] for button in routes], one_time_keyboard=True, selective=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
             ),
@@ -726,7 +726,7 @@ async def error_route_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     routes = df_routes['route_id'].values
 
     await update.message.reply_text(
-        "Do not type the train name. Select a train from the list below.",
+        "Do not type the train name. Select a train from the list below, or send /stop if you don't want to \U0000270B",
         reply_markup=ReplyKeyboardMarkup(
                 [[button] for button in routes], one_time_keyboard=True, selective=True, input_field_placeholder=routes[0]+", "+routes[1]+", "+routes[2]+", "+routes[3]+", "+routes[4]+"..."
             ),

@@ -957,6 +957,7 @@ def main() -> None:
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('help', help))
     application.add_handler(CommandHandler('donate', donate))
+    application.add_handler(CommandHandler('stop', stop)) # added here to let the user use it even if there is no active conversation 
     application.add_handler(CommandHandler('stats', stats))
     application.add_handler(conv_handler)
 

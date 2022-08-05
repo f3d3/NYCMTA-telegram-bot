@@ -73,7 +73,8 @@ from telegram.ext import (
     Defaults,
     PicklePersistence,
     PersistenceInput,
-    CallbackQueryHandler
+    CallbackQueryHandler,
+    ApplicationHandlerStop,
 )
 
 # Enable logging
@@ -818,6 +819,14 @@ async def button_pressed_direction(update: Update, context: ContextTypes.DEFAULT
     return ConversationHandler.END
 
 
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    
+    await update.message.reply_text("Invalid command. Press /help to see the bot commands.",
+        reply_markup=ReplyKeyboardRemove())
+
+    return ConversationHandler.END
+
+
 
 async def post_init(application: Application) -> None:
     await application.bot.set_my_commands([('track','Track real time subway arrival times'),
@@ -855,7 +864,7 @@ def main() -> None:
     df_routes = pd.read_csv(os.getcwd()+'/gtfs static files/routes.txt')
 
     # Load alphabetically sorted stations file
-    sortedStations = pd.read_csv(os.getcwd()+'/cache/stops_names/sorted_stations.txt',header=None).values.ravel()
+    sortedStations = pd.read_csv(os.getcwd()+'/cache/stops_names/sorted_stations.txt',header=None).values.ravel().tolist()
 
     # partial functions needed to pass additional arguments to them in order to avoid reading csv files each time
     partial_station = partial(station, trainsToShow=trainsToShow)
@@ -909,23 +918,23 @@ def main() -> None:
         ],
         states={ 
             BOROUGH: [
-                MessageHandler(filters.TEXT & filters.Regex(re.compile(r'|'.join(x for x in [j for i in reply_keyboard_borough for j in i]))), borough, block=False),
+                MessageHandler(filters.Text([j for i in reply_keyboard_borough for j in i]), borough, block=False),
                 MessageHandler(~filters.COMMAND, error_borough, block=False),
             ],
             STATION: [
-                MessageHandler(filters.TEXT & filters.Regex(re.compile(r'|'.join(x for x in sortedStations))), partial_station, block=False),
+                MessageHandler(filters.Text(sortedStations), partial_station, block=False),
                 MessageHandler(~filters.COMMAND, error_station, block=False),
             ],
             GIVE_ALERT_INFO: [
-                MessageHandler(filters.TEXT & filters.Regex(re.compile(r'|'.join(x for x in ["42nd Street Shuttle (S)" if r=='GS' else "Franklin Avenue Shuttle (S)" if r=='FS' else "Rockaway Park Shuttle (S)" if r=='H' else r for r in df_routes['route_id'].array]))), give_alert_info, block=False),
+                MessageHandler(filters.Text(df_routes['route_id'].tolist()+["42nd Street Shuttle (S)","Franklin Avenue Shuttle (S)","Rockaway Park Shuttle (S)"]), give_alert_info, block=False),
                 MessageHandler(~filters.COMMAND, error_alert_info, block=False),
             ],
             GIVE_SHOW_STOPS: [
-                MessageHandler(filters.TEXT & filters.Regex(re.compile(r'|'.join(x for x in ["42nd Street Shuttle (S)" if r=='GS' else "Franklin Avenue Shuttle (S)" if r=='FS' else "Rockaway Park Shuttle (S)" if r=='H' else r for r in df_routes['route_id'].array]))), give_show_stops, block=False),
+                MessageHandler(filters.Text(df_routes['route_id'].tolist()+["42nd Street Shuttle (S)","Franklin Avenue Shuttle (S)","Rockaway Park Shuttle (S)"]), give_show_stops, block=False),
                 MessageHandler(~filters.COMMAND, error_show_info, block=False),
             ],
             GIVE_ROUTE_INFO: [
-                MessageHandler(filters.TEXT & filters.Regex(re.compile(r'|'.join(x for x in ["42nd Street Shuttle (S)" if r=='GS' else "Franklin Avenue Shuttle (S)" if r=='FS' else "Rockaway Park Shuttle (S)" if r=='H' else r for r in df_routes['route_id'].array]))), give_route_info, block=False),
+                MessageHandler(filters.Text(df_routes['route_id'].tolist()+["42nd Street Shuttle (S)","Franklin Avenue Shuttle (S)","Rockaway Park Shuttle (S)"]), give_route_info, block=False),
                 MessageHandler(~filters.COMMAND, error_route_info, block=False),
             ],
             SEND_USER_BUG_REPORT: [
@@ -938,19 +947,18 @@ def main() -> None:
                 CallbackQueryHandler(button_pressed_direction),
             ]
         },
-        fallbacks=[CommandHandler("start", start)],
+        fallbacks=[CommandHandler('stop', stop), MessageHandler(filters.COMMAND, cancel)],
         persistent=True,
         name='ConversationHandler',
         allow_reentry = True
     )
 
     # Add handlers 
-    application.add_handler(conv_handler)
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('help', help))
     application.add_handler(CommandHandler('donate', donate))
     application.add_handler(CommandHandler('stats', stats))
-    application.add_handler(CommandHandler('stop', stop))
+    application.add_handler(conv_handler)
 
 
 

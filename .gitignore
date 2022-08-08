@@ -1,0 +1,7 @@
+# ignore ALL files in ANY directory named gtfs static files
+gtfs static files/ 
+
+client_secrets.json
+config.py
+creds.json
+settings.yaml

@@ -24,6 +24,7 @@ import functools
 import operator
 
 import gtfs_update
+import google_drive_backup
 
 import get_arrivals_departures
 import get_alerts
@@ -847,6 +848,9 @@ def main() -> None:
     dir = os.getcwd()+'/gtfs static files/'
     filename = 'google_transit_supplemented.zip'
 
+    googleDriveFolderName = 'NYC Subway Train Tracker Telegram Bot - persistence files backup'
+
+
     # Select how many incoming trains to show in output
     trainsToShow = 5
 
@@ -896,13 +900,15 @@ def main() -> None:
     # Add job that daily updates the database 
     job_queue = application.job_queue
 
-    nyc_time = datetime(2000, 1, 1, 4, 0, 0) # day is not important, just write correct time for NYC timezone
+    nyc_time_gtfs_update = datetime(2000, 1, 1, 4, 0, 0) # day is not important, just write correct time for NYC timezone
+    nyc_time_google_drive_backup = datetime(2000, 1, 1, 4, 30, 0) # day is not important, just write correct time for NYC timezone
 
     # This job is an hack to store GTFS supplemented .csv files in context.bot_data during initial code execution
     job_once = job_queue.run_once(gtfs_update.gtfs_update,when=datetime.now(pytz.timezone('America/New_York'))+timedelta(seconds=5),data=(dir,filename),name='gtfs_store_context') # use data to pass arguments to callback
     
     # This job updates the GTFS supplemented .csv files daily
-    job_daily = job_queue.run_daily(gtfs_update.gtfs_update,time=nyc_time,days=(0,1,2,3,4,5,6),data=(dir,filename),name='gtfs_daily_update') # use data to pass arguments to callback
+    job_daily = job_queue.run_daily(gtfs_update.gtfs_update,time=nyc_time_gtfs_update,days=(0,1,2,3,4,5,6),data=(dir,filename),name='gtfs_daily_update') # use data to pass arguments to callback
+    job_daily = job_queue.run_daily(google_drive_backup.google_drive_backup,time=nyc_time_google_drive_backup,days=(0,1,2,3,4,5,6),data=(googleDriveFolderName),name='google_drive_daily_backup') # use data to pass arguments to callback
 
 
     # Add conversation handler with the states BOROUGH, STATION, GIVE_ALERT_INFO, GIVE_SHOW_STOPS, GIVE_ROUTE_INFO, and SEND_USER_BUG_REPORT

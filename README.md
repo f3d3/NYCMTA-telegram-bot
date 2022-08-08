@@ -32,7 +32,7 @@ pip3 install -r requirements.txt
    - `MTA_API_key` - Get it by creating an [MTA](https://api.mta.info) developer account
    - `LIST_OF_ADMINS` - List of Telegram User ID of users that can access restricted commands.
 
-2. Create client_secrets.json file
+2. Create client_secrets.json file.
    - Follow this guide: https://medium.com/analytics-vidhya/pydrive-to-download-from-google-drive-to-a-remote-machine-14c2d086e84e
 
 3. Add values in [settings.yaml](./settings.yaml).

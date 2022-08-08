@@ -25,18 +25,21 @@ pip3 install -r requirements.txt
 ```
 
 ## Configuration
-Add values in [config.py](./config.py).
+1. Add values in [config.py](./config.py).
 
-### Configuration Values
-- `BOT_TOKEN` - Get it by contacting to [BotFather](https://t.me/botfather)
-- `MTA_API_key` - Get it by creating an [MTA](https://api.mta.info) developer account
-- `LIST_OF_ADMINS` - List of Telegram User ID of users that can access restricted commands.
+   ### Configuration Values
+   - `BOT_TOKEN` - Get it by contacting to [BotFather](https://t.me/botfather)
+   - `MTA_API_key` - Get it by creating an [MTA](https://api.mta.info) developer account
+   - `LIST_OF_ADMINS` - List of Telegram User ID of users that can access restricted commands.
 
-Add values in [settings.yaml](./settings.yaml).
+2. Create client_secrets.json file
+   - Follow this guide: https://medium.com/analytics-vidhya/pydrive-to-download-from-google-drive-to-a-remote-machine-14c2d086e84e
 
-### Configuration Values
-- `client_id` - Copy it from client_secrets.json file
-- `client_secret` - Copy it from client_secrets.json file
+3. Add values in [settings.yaml](./settings.yaml).
+
+   ### Configuration Values
+   - `client_id` - Copy it from client_secrets.json file
+   - `client_secret` - Copy it from client_secrets.json file
 
 
 ## Deploy 

@@ -32,6 +32,13 @@ Add values in [config.py](./config.py).
 - `MTA_API_key` - Get it by creating an [MTA](https://api.mta.info) developer account
 - `LIST_OF_ADMINS` - List of Telegram User ID of users that can access restricted commands.
 
+Add values in [settings.yaml](./settings.yaml).
+
+### Configuration Values
+- `client_id` - Copy it from client_secrets.json file
+- `client_secret` - Copy it from client_secrets.json file
+
+
 ## Deploy 
 
 ### Run the bot with systemd

@@ -1,5 +1,4 @@
 # NYC Subway Train Tracker Bot
-[![Build Status](https://travis-ci.org/joemccann/dillinger.svg?branch=master)](https://travis-ci.org/joemccann/dillinger)
 
 **A Telegram bot to get you real-time information about subway arrivals, departures, and alerts in the New York City subway system.**
 - Find it on Telegram as [NYC Subway Train Tracker Bot] 

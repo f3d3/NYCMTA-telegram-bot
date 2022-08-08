@@ -1,5 +1,12 @@
 # NYC Subway Train Tracker Bot
 
+[![GitHub latest commit](https://img.shields.io/github/last-commit/f3d3/NYCMTA-telegram-bot)](https://GitHub.com/f3d3/NYCMTA-telegram-bot/commit/)
+[![GitHub latest release](https://img.shields.io/github/release-date/f3d3/NYCMTA-telegram-bot)](https://GitHub.com/f3d3/NYCMTA-telegram-bot/releases/)
+[![GitHub downloads](https://img.shields.io/github/downloads/f3d3/NYCMTA-telegram-bot/total)](https://GitHub.com/f3d3/NYCMTA-telegram-bot/downloads/)
+[![GitHub license](https://img.shields.io/github/license/f3d3/NYCMTA-telegram-bot)](https://GitHub.com/license/f3d3/NYCMTA-telegram-bot/)
+[![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
+![Google Drive](https://img.shields.io/badge/Google%20Drive-4285F4?style=for-the-badge&logo=googledrive&logoColor=white)
+
 **A Telegram bot to get you real-time information about subway arrivals, departures, and alerts in the New York City subway system.**
 - Find it on Telegram as [NYC Subway Train Tracker Bot] 
 

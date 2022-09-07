@@ -7,6 +7,8 @@ save_credentials: True
 save_credentials_backend: file
 save_credentials_file: creds.json
 
+get_refresh_token: True
+
 oauth_scope:
 - https://www.googleapis.com/auth/drive
 - https://www.googleapis.com/auth/drive.file

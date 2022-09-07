@@ -1,6 +1,6 @@
 import os
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
+from pydrive2.auth import GoogleAuth
+from pydrive2.drive import GoogleDrive
 
 
 async def google_drive_backup(*args):
@@ -9,7 +9,8 @@ async def google_drive_backup(*args):
     folderName = context.job.data
 
     gauth = GoogleAuth()
-    gauth.CommandLineAuth()
+    gauth.LocalWebserverAuth()
+    # gauth.CommandLineAuth()
     drive = GoogleDrive(gauth)
 
     # List folders

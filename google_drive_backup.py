@@ -48,3 +48,4 @@ async def google_drive_backup(*args):
                         file2 = drive.CreateFile({'id':file_id_2, 'title': 'PicklePersistence', 'parents': [{'id': folder['id']}]})
                         file2.SetContentFile(os.getcwd()+'/PicklePersistence')
                         file2.Upload()
+
